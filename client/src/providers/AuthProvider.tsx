@@ -19,14 +19,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
   const { data: user, isLoading } = useMe();
 
+  // Drop everything cached for the previous account, but keep the "me" query
+  // itself so components subscribed to it see the change immediately.
+  const resetOtherQueries = useCallback(
+    () => client.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] }),
+    [client],
+  );
+
   const signedIn = useCallback(
     (next: User) => {
-      // A different account may have signed in — drop any cached data.
-      client.clear();
+      resetOtherQueries();
       client.setQueryData(keys.me, next);
       return next;
     },
-    [client],
+    [client, resetOtherQueries],
   );
 
   const value = useMemo<AuthContextValue>(
@@ -38,11 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginDemo: async () => signedIn((await api.demo()).user),
       logout: async () => {
         await api.logout().catch(() => undefined);
-        client.clear();
+        resetOtherQueries();
         client.setQueryData(keys.me, null);
       },
     }),
-    [client, isLoading, signedIn, user],
+    [client, isLoading, resetOtherQueries, signedIn, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

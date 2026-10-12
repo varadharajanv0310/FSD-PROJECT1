@@ -33,7 +33,7 @@ import { Toggle } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import { Kbd, Spinner } from "@/components/ui/primitives";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useAudioLevel, useElapsed, useMediaStream } from "@/hooks/useMedia";
+import { cameraSupported, useAudioLevel, useElapsed, useMediaStream } from "@/hooks/useMedia";
 import { appendDictation, useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { api, ApiError } from "@/lib/api";
@@ -138,9 +138,11 @@ function Lobby({ session, onBegin }: { session: InterviewSession; onBegin: (opts
         )}
 
         <div className="mt-6 space-y-5">
-          <div className="dark [&_label]:text-white [&_p]:text-white/55">
-            <Toggle checked={camera} onChange={setCamera} label="Camera self-view" description="See yourself like the panel would. The video stays on your device." />
-          </div>
+          {cameraSupported() && (
+            <div className="dark [&_label]:text-white [&_p]:text-white/55">
+              <Toggle checked={camera} onChange={setCamera} label="Camera self-view" description="See yourself like the panel would. The video stays on your device." />
+            </div>
+          )}
           {tts.supported && (
             <div className="dark [&_label]:text-white [&_p]:text-white/55">
               <Toggle
@@ -161,7 +163,7 @@ function Lobby({ session, onBegin }: { session: InterviewSession; onBegin: (opts
           className="mt-8"
           onClick={() => {
             mic.stop();
-            onBegin({ camera });
+            onBegin({ camera: camera && cameraSupported() });
           }}
         >
           Begin interview
@@ -353,7 +355,7 @@ function QuestionStage({
   const [showHint, setShowHint] = useState(false);
   const [submitting, setSubmitting] = useState<"answer" | "skip" | null>(null);
   const [readAloud, setReadAloud] = useState(prefs?.autoReadQuestions ?? true);
-  const [cameraOn, setCameraOn] = useState(cameraDefault);
+  const [cameraOn, setCameraOn] = useState(cameraDefault && cameraSupported());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const speech = useSpeechRecognition();
@@ -528,7 +530,7 @@ function QuestionStage({
           </motion.div>
         </AnimatePresence>
 
-        <div className="mt-auto hidden pt-8 lg:block">
+        <div className={cn("mt-auto hidden pt-8", cameraSupported() && "lg:block")}>
           {cameraOn ? (
             <CameraPreview stream={camera.stream} onClose={() => setCameraOn(false)} className="max-w-[300px]" />
           ) : (

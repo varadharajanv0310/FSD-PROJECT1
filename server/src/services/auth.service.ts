@@ -4,7 +4,7 @@ import { InterviewSessionModel } from "../models/InterviewSession";
 import { SavedQuestionModel } from "../models/SavedQuestion";
 import { UserModel } from "../models/User";
 import { badRequest, conflict, forbidden, notFound, unauthorized } from "../utils/errors";
-import { serializeUser } from "./serialize";
+import { serializeUser } from "../core/serialize";
 
 const SALT_ROUNDS = 12;
 

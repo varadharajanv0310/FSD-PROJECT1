@@ -5,7 +5,7 @@ import { aiLimiter } from "../middleware/rateLimit";
 import { validateBody } from "../middleware/validate";
 import { SavedQuestionModel } from "../models/SavedQuestion";
 import { evaluatePracticeAnswer, generatePracticeQuestions } from "../services/practice.service";
-import { serializeSavedQuestion } from "../services/serialize";
+import { serializeSavedQuestion } from "../core/serialize";
 import { notFound } from "../utils/errors";
 import { PracticeEvaluateSchema, PracticeQuestionsSchema, SaveQuestionSchema } from "./schemas";
 

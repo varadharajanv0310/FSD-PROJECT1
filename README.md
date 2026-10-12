@@ -30,6 +30,7 @@ always works, even without internet access during a demo.
 - [Architecture](#architecture)
 - [How the AI works](#how-the-ai-works)
 - [Getting started](#getting-started)
+- [Standalone preview](#standalone-preview-no-server)
 - [Project structure](#project-structure)
 - [API reference](#api-reference)
 - [Testing](#testing)
@@ -211,6 +212,7 @@ history, or create your own account. To reset the demo data at any time: `npm ru
 | `npm test` | Runs all unit and API tests |
 | `npm run typecheck` | Type-checks every workspace |
 | `npm run seed` | Recreates the demo account's practice history |
+| `npm run build:standalone` | Builds the serverless single-file preview into `client/dist-standalone/` |
 
 ### Configuration
 
@@ -226,6 +228,23 @@ All settings live in `.env` (see [`.env.example`](.env.example)).
 | `PORT` | `4000` | API port |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Allowed CORS origin(s) |
 | `DEMO_ACCOUNT` | `true` | Enables the one-click demo account |
+
+## Standalone preview (no server)
+
+`npm run build:standalone` produces **one self-contained HTML file** (`client/dist-standalone/index.html`)
+that runs the entire app in the browser, with no API server, database or network connection. It is meant
+for sharing a working preview, for example opening it on a phone.
+
+- The client's API layer swaps the HTTP client (`lib/http-api.ts`) for an in-browser implementation of the
+  same contract (`standalone/local-api.ts`). Everything is stored in `localStorage` on that device, and the
+  app keeps working in memory if storage is blocked.
+- Questions, follow-ups, scoring and reports come from the **offline engine**. The pure parts of the server
+  (report assembly, dashboard stats, demo seeding, serialisation) live in `server/src/core/` and are shared
+  by both builds, so the preview behaves exactly like the real API.
+- Fonts and all assets are inlined, and routing uses an in-memory router, so the file works from any URL
+  or folder.
+- Answers are typed: spoken answers, camera self-view and "Save as PDF" are left out because embedded
+  previews usually can't access the microphone, camera or print dialog. Run the full app for those.
 
 ## Project structure
 
@@ -245,6 +264,7 @@ poise/
 │   │   │   └── local/       # Offline engine: bank, selection, scoring, feedback, follow-ups, report
 │   │   ├── models/          # User, InterviewSession, SavedQuestion (Mongoose)
 │   │   ├── routes/          # auth, interviews, practice, meta + Zod schemas
+│   │   ├── core/            # Pure logic shared with the standalone build: reports, stats, demo data
 │   │   ├── services/        # interview orchestration, stats, practice, auth, demo seeding
 │   │   ├── middleware/      # auth, validation, errors, rate limits
 │   │   └── app.ts, index.ts
@@ -254,7 +274,8 @@ poise/
 │       ├── pages/           # Landing, Auth, Dashboard, NewInterview, InterviewRoom, Report, History, PracticeLab, Settings
 │       ├── components/      # landing/, app/, interview/, report/, ui/, brand/ (Orb, Glow, Logo…)
 │       ├── hooks/           # Speech recognition & synthesis, media streams, audio level
-│       └── lib/             # API client, queries, formatting
+│       ├── lib/             # API client, queries, formatting
+│       └── standalone/      # In-browser API and device storage for the serverless preview
 ├── docs/                    # Architecture notes and screenshots
 ├── Dockerfile, docker-compose.yml
 └── .github/workflows/ci.yml

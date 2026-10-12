@@ -11,3 +11,6 @@ coverage/
 *.tsbuildinfo
 playwright-report/
 test-results/
+
+# Standalone single-file build
+dist-standalone/

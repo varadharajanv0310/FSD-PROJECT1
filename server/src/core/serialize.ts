@@ -5,17 +5,17 @@ import type {
   SessionSummary,
   User,
 } from "@poise/shared";
-import type { StoredQuestion, StoredSession } from "../models/InterviewSession";
+import type { StoredQuestion } from "../models/InterviewSession";
 import type { StoredSavedQuestion } from "../models/SavedQuestion";
 import type { UserRecord } from "../models/User";
-
-type WithId<T> = T & { _id: { toString(): string } };
+import type { SessionRecord, WithId } from "./session";
 
 const iso = (date: Date | string | undefined) => (date ? new Date(date).toISOString() : undefined);
+const idOf = (record: { _id: { toString(): string } | string }) => record._id.toString();
 
-export function serializeUser(user: WithId<UserRecord>): User {
+export function serializeUser(user: WithId<Omit<UserRecord, "createdAt" | "updatedAt"> & { createdAt?: Date | string }>): User {
   return {
-    id: user._id.toString(),
+    id: idOf(user),
     name: user.name,
     email: user.email,
     targetRole: (user.targetRole ?? undefined) as User["targetRole"],
@@ -27,7 +27,7 @@ export function serializeUser(user: WithId<UserRecord>): User {
       showLiveMetrics: user.preferences?.showLiveMetrics ?? true,
       cameraByDefault: user.preferences?.cameraByDefault ?? false,
     },
-    createdAt: iso(user.createdAt as Date)!,
+    createdAt: iso(user.createdAt) ?? new Date(0).toISOString(),
   };
 }
 
@@ -36,7 +36,7 @@ export function serializeUser(user: WithId<UserRecord>): User {
  * candidate only sees questions they've reached, and key points stay hidden
  * until they've answered — just like a real interview.
  */
-function serializeQuestion(question: StoredQuestion, index: number, session: StoredSession): InterviewQuestion {
+function serializeQuestion(question: StoredQuestion, index: number, session: SessionRecord): InterviewQuestion {
   const inProgress = session.status === "in_progress";
   const reached = !inProgress || index <= session.currentIndex;
   const answered = Boolean(question.answer);
@@ -55,9 +55,9 @@ function serializeQuestion(question: StoredQuestion, index: number, session: Sto
   };
 }
 
-export function serializeSession(session: WithId<StoredSession>): InterviewSession {
+export function serializeSession(session: WithId<SessionRecord>): InterviewSession {
   return {
-    id: session._id.toString(),
+    id: idOf(session),
     title: session.title,
     config: session.config,
     status: session.status,
@@ -71,9 +71,9 @@ export function serializeSession(session: WithId<StoredSession>): InterviewSessi
   };
 }
 
-export function summarizeSession(session: WithId<StoredSession>): SessionSummary {
+export function summarizeSession(session: WithId<SessionRecord>): SessionSummary {
   return {
-    id: session._id.toString(),
+    id: idOf(session),
     title: session.title,
     role: session.config.role,
     type: session.config.type,
@@ -91,9 +91,9 @@ export function summarizeSession(session: WithId<StoredSession>): SessionSummary
   };
 }
 
-export function serializeSavedQuestion(question: WithId<StoredSavedQuestion>): SavedQuestion {
+export function serializeSavedQuestion(question: WithId<Omit<StoredSavedQuestion, "user" | "createdAt" | "updatedAt"> & { createdAt: Date | string }>): SavedQuestion {
   return {
-    id: question._id.toString(),
+    id: idOf(question),
     text: question.text,
     category: question.category,
     difficulty: question.difficulty,

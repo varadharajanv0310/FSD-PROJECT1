@@ -33,3 +33,5 @@ jobs:
           MONGODB_URI_TEST: mongodb://127.0.0.1:27017/poise_test
       - name: Build
         run: npm run build
+      - name: Build standalone preview
+        run: npm run build:standalone

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isStandalone } from "@/lib/env";
 
 /* Minimal typings for the Web Speech API (not yet in lib.dom). */
 interface SpeechRecognitionAlternative {
@@ -35,7 +36,8 @@ function getRecognition(): SpeechRecognitionConstructor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export const speechRecognitionSupported = () => getRecognition() !== null;
+/** The standalone preview runs where microphone access is blocked, so it takes typed answers only. */
+export const speechRecognitionSupported = () => !isStandalone && getRecognition() !== null;
 
 const ERROR_MESSAGES: Record<string, string> = {
   "not-allowed": "Microphone access was blocked. Allow it in your browser's address bar, or type your answer instead.",

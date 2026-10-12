@@ -6,6 +6,7 @@ import { PageGlow } from "@/components/brand/Glow";
 import { Logo } from "@/components/brand/Logo";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { isStandalone } from "@/lib/env";
 import { firstName } from "@/lib/format";
 import { useEngine } from "@/lib/queries";
 import { useAuth } from "@/providers/AuthProvider";
@@ -131,7 +132,7 @@ export function AppShell() {
   return (
     <div className="relative isolate min-h-screen pb-24 md:pb-0">
       <PageGlow />
-      <header className="sticky top-0 z-30 border-b border-line/70 bg-white/70 backdrop-blur-xl">
+      <header className="sticky top-[env(safe-area-inset-top,0px)] z-30 border-b border-line/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-6 px-5 sm:px-8">
           <div className="flex items-center gap-8">
             <Logo to="/app" />
@@ -166,11 +167,23 @@ export function AppShell() {
       {user?.isDemo && (
         <div className="border-b border-line/70 bg-brand-soft">
           <p className="mx-auto max-w-[1200px] px-5 py-2 text-center text-[13px] text-ink-2 sm:px-8">
-            You're exploring the <span className="font-semibold">demo account</span>, shared with other visitors.{" "}
-            <Link to="/signup" className="font-medium underline underline-offset-2">
-              Create your own
-            </Link>{" "}
-            to keep your progress private.
+            {isStandalone ? (
+              <>
+                You're exploring the <span className="font-semibold">demo account</span> on this device.{" "}
+                <Link to="/signup" className="font-medium underline underline-offset-2">
+                  Create your own
+                </Link>{" "}
+                to start fresh.
+              </>
+            ) : (
+              <>
+                You're exploring the <span className="font-semibold">demo account</span>, shared with other visitors.{" "}
+                <Link to="/signup" className="font-medium underline underline-offset-2">
+                  Create your own
+                </Link>{" "}
+                to keep your progress private.
+              </>
+            )}
           </p>
         </div>
       )}
@@ -189,7 +202,7 @@ export function AppShell() {
       </AnimatePresence>
 
       {/* Mobile tab bar */}
-      <nav className="fixed inset-x-3 bottom-3 z-30 flex items-center justify-around rounded-full border border-line bg-white/90 p-1.5 shadow-[0_10px_40px_-12px_rgb(0_0_0/0.25)] backdrop-blur-xl md:hidden" aria-label="App">
+      <nav className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] z-30 flex items-center justify-around rounded-full border border-line bg-white/90 p-1.5 shadow-[0_10px_40px_-12px_rgb(0_0_0/0.25)] backdrop-blur-xl md:hidden" aria-label="App">
         {NAV.map((item) => (
           <NavLink
             key={item.to}

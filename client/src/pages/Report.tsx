@@ -14,6 +14,7 @@ import { Card, Chip, SectionHeading, Skeleton } from "@/components/ui/primitives
 import { ScoreRing } from "@/components/ui/ScoreRing";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ApiError } from "@/lib/api";
+import { isStandalone } from "@/lib/env";
 import { formatDate, formatMinutes, pluralize } from "@/lib/format";
 import { useCreateSession, useSession } from "@/lib/queries";
 
@@ -165,9 +166,11 @@ export default function Report() {
           <ArrowLeft className="size-4" /> Dashboard
         </Link>
         <div className="flex gap-2">
-          <Button variant="soft" size="sm" onClick={downloadPdf}>
-            <Download className="size-4" /> Save as PDF
-          </Button>
+          {!isStandalone && (
+            <Button variant="soft" size="sm" onClick={downloadPdf}>
+              <Download className="size-4" /> Save as PDF
+            </Button>
+          )}
           <Button size="sm" onClick={practiceAgain} loading={createSession.isPending}>
             <RotateCcw className="size-4" /> Practise again
           </Button>

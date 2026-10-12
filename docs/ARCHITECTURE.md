@@ -226,3 +226,24 @@ The interface follows an editorial, warm aesthetic:
 - **Motion**: Motion (Framer Motion) for reveals, page transitions and layout; every animation respects
   `prefers-reduced-motion`.
 - **The interview room** uses a dark "stage" to reduce distraction; the rest of the app is light.
+
+## 8. Standalone build
+
+`npm run build:standalone` compiles the same client in Vite's `standalone` mode into a single HTML file
+with every script, style and font inlined (`vite-plugin-singlefile`). It exists so the app can be opened
+anywhere, for example on a phone, without a server.
+
+- **One API contract, two implementations.** Pages only talk to `api` (`client/src/lib/api.ts`). In the
+  normal build that is `httpApi` (fetch against `/api`); in standalone it is `localApi`
+  (`client/src/standalone/local-api.ts`), which implements every method with the same shapes, rules and
+  error messages as the Express services.
+- **Shared core.** Logic that both need, such as report assembly, dashboard statistics, demo seeding, question
+  conversion and serialisation, lives in `server/src/core/`. It has no database, config or Node imports,
+  so the server services and the browser build call exactly the same code. The offline engine
+  (`server/src/ai/local`) is reused the same way.
+- **Storage.** One JSON document in `localStorage` (`poise:standalone:v1`), with an in-memory fallback
+  when storage is unavailable. Passwords are stored as SHA-256 hashes; nothing leaves the device.
+- **Routing.** A memory router replaces the browser router, so the file works from any URL or folder.
+- **Capabilities.** Spoken answers, camera self-view and printing are switched off, because sandboxed
+  previews generally can't use the microphone, camera or print dialog. Answers are typed, and
+  questions can still be read aloud with speech synthesis.

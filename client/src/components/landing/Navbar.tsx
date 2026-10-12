@@ -7,6 +7,14 @@ import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/providers/AuthProvider";
 
+/** Smooth-scrolls to a landing section without touching the URL (works in every router mode). */
+function scrollToSection(event: React.MouseEvent<HTMLAnchorElement>, href: string) {
+  const target = document.getElementById(href.slice(1));
+  if (!target) return;
+  event.preventDefault();
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 const LINKS = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How it works" },
@@ -29,7 +37,7 @@ export function Navbar() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 transition-[background-color,box-shadow,backdrop-filter] duration-500",
+        "fixed inset-x-0 top-0 z-40 pt-[env(safe-area-inset-top,0px)] transition-[background-color,box-shadow,backdrop-filter] duration-500",
         scrolled ? "bg-white/75 shadow-[0_1px_0_rgb(0_0_0/0.06)] backdrop-blur-xl" : "bg-transparent",
       )}
     >
@@ -38,7 +46,7 @@ export function Navbar() {
         <ul className="hidden items-center gap-8 md:flex">
           {LINKS.map((link) => (
             <li key={link.href}>
-              <a href={link.href} className="text-[13.5px] text-ink-2 transition-colors hover:text-ink">
+              <a href={link.href} onClick={(event) => scrollToSection(event, link.href)} className="text-[13.5px] text-ink-2 transition-colors hover:text-ink">
                 {link.label}
               </a>
             </li>
@@ -80,7 +88,15 @@ export function Navbar() {
           >
             <div className="flex flex-col gap-1 px-5 py-4">
               {LINKS.map((link) => (
-                <a key={link.href} href={link.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[15px] hover:bg-mist">
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={(event) => {
+                    setOpen(false);
+                    scrollToSection(event, link.href);
+                  }}
+                  className="rounded-xl px-3 py-3 text-[15px] hover:bg-mist"
+                >
                   {link.label}
                 </a>
               ))}

@@ -1,8 +1,18 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { createBrowserRouter, Navigate, Outlet, RouterProvider, ScrollRestoration, useLocation } from "react-router";
+import {
+  createBrowserRouter,
+  createMemoryRouter,
+  Navigate,
+  Outlet,
+  RouterProvider,
+  ScrollRestoration,
+  useLocation,
+  type RouteObject,
+} from "react-router";
 import { Toaster } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Spinner } from "@/components/ui/primitives";
+import { isStandalone } from "@/lib/env";
 import Landing from "@/pages/Landing";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 
@@ -55,7 +65,7 @@ function Root() {
   );
 }
 
-const router = createBrowserRouter([
+const routes: RouteObject[] = [
   {
     element: <Root />,
     children: [
@@ -81,7 +91,11 @@ const router = createBrowserRouter([
       { path: "*", element: <NotFound /> },
     ],
   },
-]);
+];
+
+// The standalone build may be opened from a file or embedded in a frame, where
+// the page URL can't be used for routing — so it keeps routes in memory.
+const router = isStandalone ? createMemoryRouter(routes) : createBrowserRouter(routes);
 
 export function App() {
   return <RouterProvider router={router} />;

@@ -8,7 +8,9 @@ import { Field, Input, Range, Select, Toggle } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import { Card } from "@/components/ui/primitives";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { cameraSupported } from "@/hooks/useMedia";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
+import { isStandalone } from "@/lib/env";
 import { api, ApiError } from "@/lib/api";
 import { useEngine, useUpdateProfile } from "@/lib/queries";
 import { useAuth } from "@/providers/AuthProvider";
@@ -182,12 +184,14 @@ export default function Settings() {
             label="Show live metrics"
             description="Word count, pace, filler words and hedges while you answer."
           />
-          <Toggle
-            checked={user.preferences.cameraByDefault}
-            onChange={(value) => setPreference({ cameraByDefault: value })}
-            label="Camera self-view by default"
-            description="Practise eye contact. Video never leaves your device."
-          />
+          {cameraSupported() && (
+            <Toggle
+              checked={user.preferences.cameraByDefault}
+              onChange={(value) => setPreference({ cameraByDefault: value })}
+              label="Camera self-view by default"
+              description="Practise eye contact. Video never leaves your device."
+            />
+          )}
         </div>
       </Panel>
 
@@ -203,7 +207,9 @@ export default function Settings() {
             </div>
           </div>
           <p className="mt-4 text-[14px] leading-relaxed text-muted">
-            {engine?.provider === "claude"
+            {isStandalone
+              ? "This preview runs entirely in your browser with Poise's offline engine: a curated bank of 115 questions and a transparent, rubric-based evaluator. Your account and practice history stay on this device. The full app adds Claude-written questions and feedback, spoken answers and camera self-view."
+              : engine?.provider === "claude"
               ? "Questions, follow-ups and feedback are written by Claude using a fixed scoring rubric. If the API is ever unavailable, Poise falls back to its offline engine automatically."
               : "Poise is using its offline engine: a curated bank of 115 questions and a transparent, rubric-based evaluator. To use Claude, set ANTHROPIC_API_KEY in the server's environment and restart it."}
           </p>

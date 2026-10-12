@@ -2,7 +2,7 @@
   "name": "poise",
   "private": true,
   "version": "1.0.0",
-  "description": "Poise — an AI-based interview practice & feedback system: mock interviews, question generation and automated feedback.",
+  "description": "Poise \u2014 an AI-based interview practice & feedback system: mock interviews, question generation and automated feedback.",
   "license": "MIT",
   "type": "module",
   "workspaces": [
@@ -16,6 +16,7 @@
   "scripts": {
     "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev -w server\" \"npm:dev -w client\"",
     "build": "npm run build -w client && npm run build -w server",
+    "build:standalone": "npm run build:standalone -w client",
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

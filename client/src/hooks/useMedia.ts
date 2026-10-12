@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isStandalone } from "@/lib/env";
+
+/** Camera self-view needs getUserMedia, which the standalone preview's frame blocks. */
+export const cameraSupported = () =>
+  !isStandalone && typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
 
 /** Requests a microphone or camera stream on demand and releases it on unmount. */
 export function useMediaStream(kind: "audio" | "video") {

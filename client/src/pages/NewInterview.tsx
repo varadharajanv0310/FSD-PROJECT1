@@ -29,6 +29,7 @@ import { Card } from "@/components/ui/primitives";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { speechRecognitionSupported } from "@/hooks/useSpeechRecognition";
 import { ApiError } from "@/lib/api";
+import { isStandalone } from "@/lib/env";
 import { cn } from "@/lib/cn";
 import { useCreateSession, useEngine } from "@/lib/queries";
 import { RoleIcon, ROLE_GRADIENTS } from "@/lib/roles";
@@ -332,7 +333,9 @@ export default function NewInterview() {
                 <span className="mt-1 block text-[13.5px] leading-snug text-muted">
                   {voiceSupported
                     ? "Answer out loud. Poise transcribes live and measures pace and filler words."
-                    : "Spoken answers need Chrome, Edge or Safari."}
+                    : isStandalone
+                      ? "Spoken answers need microphone access, which this preview doesn't have. Run Poise locally to answer out loud."
+                      : "Spoken answers need Chrome, Edge or Safari."}
                 </span>
               </OptionCard>
               <OptionCard selected={answerMode === "text"} onClick={() => setAnswerMode("text")}>

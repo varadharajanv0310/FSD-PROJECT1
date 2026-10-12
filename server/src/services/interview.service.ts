@@ -1,57 +1,25 @@
-import { randomUUID } from "node:crypto";
 import { Types } from "mongoose";
 import {
-  DIMENSIONS,
   INTERVIEW_TYPE_INFO,
   LIMITS,
   analyzeAnswer,
   getRole,
-  scoreBand,
   weightedOverall,
   type AnswerMode,
-  type DimensionScores,
   type InterviewConfig,
   type InterviewSession,
   type QuestionEvaluation,
   type SessionReport,
   type SessionSummary,
 } from "@poise/shared";
-import { localEngine, runEngine, type DraftQuestion, type QuestionContext, type ReportItem } from "../ai";
+import { localEngine, runEngine } from "../ai";
 import { skippedEvaluation } from "../ai/local/feedback";
-import {
-  InterviewSessionModel,
-  type StoredQuestion,
-  type StoredSession,
-} from "../models/InterviewSession";
+import { assembleReport, reportInputFor } from "../core/report";
+import { questionContext as contextOf, toStoredQuestion as toStored } from "../core/session";
+import { InterviewSessionModel, type StoredSession } from "../models/InterviewSession";
 import { badRequest, conflict, notFound } from "../utils/errors";
 import { logger } from "../utils/logger";
-import { serializeSession, summarizeSession } from "./serialize";
-
-const newQuestionId = () => randomUUID().slice(0, 8);
-
-function toStored(draft: DraftQuestion, kind: StoredQuestion["kind"], parentId?: string): StoredQuestion {
-  return {
-    id: newQuestionId(),
-    text: draft.text,
-    category: draft.category,
-    kind,
-    parentId,
-    difficulty: draft.difficulty,
-    hint: draft.hint,
-    keyPoints: draft.keyPoints,
-    referenceAnswer: draft.referenceAnswer,
-  };
-}
-
-function contextOf(question: StoredQuestion): QuestionContext {
-  return {
-    text: question.text,
-    category: question.category,
-    kind: question.kind,
-    keyPoints: question.keyPoints,
-    referenceAnswer: question.referenceAnswer,
-  };
-}
+import { serializeSession, summarizeSession } from "../core/serialize";
 
 async function loadOwned(userId: string, sessionId: string) {
   if (!Types.ObjectId.isValid(sessionId)) throw notFound("We couldn't find that interview.");
@@ -316,63 +284,13 @@ export async function resumeUnfinishedWork(): Promise<void> {
   if (sessions.length > 0) logger.info(`Resumed background work for ${sessions.length} interview(s).`);
 }
 
-function mean(values: number[]): number | null {
-  return values.length === 0 ? null : values.reduce((a, b) => a + b, 0) / values.length;
-}
-
-const round1 = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10);
-
 export async function buildSessionReport(
   session: Pick<StoredSession, "questions" | "config">,
   options: { offline?: boolean } = {},
 ): Promise<SessionReport> {
-  const scored = session.questions.filter((q) => q.answer && q.evaluation?.status === "done" && q.evaluation.scores);
-  const spoken = session.questions.filter((q) => q.answer && !q.answer.skipped && q.metrics);
-
-  const dimensions = Object.fromEntries(
-    DIMENSIONS.map((key) => [key, Math.round(mean(scored.map((q) => q.evaluation!.scores![key])) ?? 0)]),
-  ) as DimensionScores;
-  const overall = Math.round(mean(scored.map((q) => q.evaluation!.overall ?? 0)) ?? 0);
-
-  const totalWords = spoken.reduce((sum, q) => sum + q.metrics!.wordCount, 0);
-  const totalFillers = spoken.reduce((sum, q) => sum + q.metrics!.fillerCount, 0);
-  const totalHedges = spoken.reduce((sum, q) => sum + q.metrics!.hedgeCount, 0);
-  const wpms = spoken.map((q) => q.metrics!.wpm).filter((w): w is number => w !== null);
-  const habits = {
-    fillersPer100Words: totalWords > 0 ? round1((totalFillers / totalWords) * 100) : null,
-    hedgesPer100Words: totalWords > 0 ? round1((totalHedges / totalWords) * 100) : null,
-    averageWpm: wpms.length > 0 ? Math.round(mean(wpms)!) : null,
-    averageAnswerWords: spoken.length > 0 ? Math.round(totalWords / spoken.length) : null,
-  };
-
-  const items: ReportItem[] = session.questions
-    .filter((q) => q.answer)
-    .map((q) => ({
-      question: q.text,
-      category: q.category,
-      kind: q.kind,
-      answer: q.answer!.skipped ? null : q.answer!.text,
-      skipped: q.answer!.skipped,
-      overall: q.evaluation?.overall ?? null,
-      scores: q.evaluation?.scores ?? null,
-      summary: q.evaluation?.summary ?? null,
-      missedPoints: q.evaluation?.missedPoints ?? [],
-    }));
-
-  const reportInput = { config: session.config, items, overall, dimensions, habits };
+  const input = reportInputFor(session);
   const { value: narrative, engine } = options.offline
-    ? { value: await localEngine.generateReport(reportInput), engine: "local" as const }
-    : await runEngine("report", (e) => e.generateReport(reportInput));
-
-  return {
-    overall,
-    band: scoreBand(overall).label,
-    dimensions,
-    ...narrative,
-    answeredCount: session.questions.filter((q) => q.answer && !q.answer.skipped).length,
-    skippedCount: session.questions.filter((q) => q.answer?.skipped).length,
-    unansweredCount: session.questions.filter((q) => !q.answer).length,
-    engine,
-    generatedAt: new Date().toISOString(),
-  };
+    ? { value: await localEngine.generateReport(input), engine: "local" as const }
+    : await runEngine("report", (e) => e.generateReport(input));
+  return assembleReport(session, input, narrative, engine);
 }

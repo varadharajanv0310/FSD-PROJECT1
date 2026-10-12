@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/form";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ApiError } from "@/lib/api";
+import { isStandalone } from "@/lib/env";
 import { useAuth } from "@/providers/AuthProvider";
 
 const PERKS = [
@@ -156,6 +157,11 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
             Explore the live demo
           </Button>
           <p className="mt-2 text-center text-[12.5px] text-faint">A sample account with a week of practice history.</p>
+          {isStandalone && (
+            <p className="mt-6 rounded-2xl bg-mist px-4 py-3 text-center text-[13px] leading-relaxed text-muted">
+              This is a preview that runs entirely in your browser. Accounts and practice history stay on this device.
+            </p>
+          )}
 
           <p className="mt-8 text-center text-[14px] text-muted">
             {isLogin ? "New to Poise? " : "Already have an account? "}
