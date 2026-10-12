@@ -245,7 +245,7 @@ export default function NewInterview() {
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Section step={1} title="Choose a role" description="Questions are written for this role's interview loop.">
             <div role="radiogroup" aria-label="Role" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
               {ROLES.map((item) => (
@@ -279,7 +279,7 @@ export default function NewInterview() {
 
           <Section step={3} title="Level & difficulty" description="Difficulty follows your level unless you change it.">
             <div className="flex flex-wrap gap-x-10 gap-y-6">
-              <div>
+              <div className="min-w-0 max-w-full">
                 <p className="mb-2.5 text-[13px] font-medium text-muted">Experience</p>
                 <Segmented
                   ariaLabel="Experience level"
@@ -288,7 +288,7 @@ export default function NewInterview() {
                   options={LEVELS.map((value) => ({ value, label: LEVEL_INFO[value].label, title: LEVEL_INFO[value].years }))}
                 />
               </div>
-              <div>
+              <div className="min-w-0 max-w-full">
                 <p className="mb-2.5 text-[13px] font-medium text-muted">Difficulty</p>
                 <Segmented
                   ariaLabel="Difficulty"
@@ -305,7 +305,7 @@ export default function NewInterview() {
 
           <Section step={4} title="Length & pace">
             <div className="grid gap-8 xl:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <div className="mb-3 flex items-baseline justify-between">
                   <p className="text-[13px] font-medium text-muted">Questions</p>
                   <p className="font-display text-[22px] font-semibold tabular-nums">{questionCount}</p>
@@ -316,7 +316,7 @@ export default function NewInterview() {
                   <span>Full loop · {LIMITS.maxQuestions}</span>
                 </div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="mb-3 text-[13px] font-medium text-muted">Time per question</p>
                 <Segmented ariaLabel="Time per question" size="sm" value={timePerQuestion} onChange={setTimePerQuestion} options={TIME_OPTIONS} />
                 <p className="mt-2.5 text-[12.5px] text-muted">You can always finish your thought — the timer is a guide, not a guillotine.</p>
@@ -408,7 +408,7 @@ export default function NewInterview() {
         </div>
 
         {/* Summary */}
-        <aside className="lg:sticky lg:top-24">
+        <aside className="min-w-0 lg:sticky lg:top-24">
           <Card className="overflow-hidden">
             <div className="relative overflow-hidden bg-night px-6 pb-6 pt-7 text-white">
               <div className="absolute inset-0" style={{ background: "radial-gradient(80% 90% at 90% 0%, rgb(232 51 111 / 0.55), transparent 70%)" }} />

@@ -347,7 +347,7 @@ export default function PracticeLab() {
 
       {tab === "generate" ? (
         <div className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
-          <Card className="space-y-5 p-6 lg:sticky lg:top-24">
+          <Card className="min-w-0 space-y-5 p-6 lg:sticky lg:top-24">
             <Field label="Role" htmlFor="lab-role">
               <Select id="lab-role" value={role} onChange={(e) => setRole(e.target.value as RoleId)}>
                 {ROLES.map((item) => (
@@ -426,7 +426,7 @@ export default function PracticeLab() {
             </div>
           </Card>
 
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {loading ? (
               [0, 1, 2].map((i) => <Skeleton key={i} className="h-36" />)
             ) : questions.length === 0 ? (
