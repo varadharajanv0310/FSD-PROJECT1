@@ -78,7 +78,10 @@ always works, even without internet access during a demo.
 - Full interview history with filters, resumable in-progress interviews, and deletion.
 
 **Thoughtful details**
-- One-click **live demo account** pre-seeded with a week of realistic practice history.
+- **No sign-up**: each browser gets its own private profile automatically. Name, target role and level
+  are optional settings, and "Erase my data" starts over.
+- **Explore with sample data**: one click fills an empty dashboard with a week of realistic practice
+  history.
 - Works fully offline (local engine) and degrades gracefully when the AI service fails mid-interview.
 - Responsive from 360px phones to wide desktops; respects `prefers-reduced-motion`; keyboard and
   screen-reader friendly controls.
@@ -196,8 +199,8 @@ npm run dev
 
 Open **http://localhost:5173**. The API runs on http://localhost:4000 and Vite proxies `/api` to it.
 
-Click **"Explore the live demo"** on the sign-in page to load a demo account with a week of practice
-history, or create your own account. To reset the demo data at any time: `npm run seed`.
+There's no sign-up: the app creates a private profile for your browser the first time you open it. To see
+a populated dashboard straight away, click **"Explore with sample data"** on the empty dashboard.
 
 > **Voice answers** need Chrome, Edge or Safari (Web Speech API). In other browsers, type your answers —
 > feedback works the same.
@@ -211,7 +214,7 @@ history, or create your own account. To reset the demo data at any time: `npm ru
 | `npm start` | Starts the production server (serves the built client too) |
 | `npm test` | Runs all unit and API tests |
 | `npm run typecheck` | Type-checks every workspace |
-| `npm run seed` | Recreates the demo account's practice history |
+| `npm run seed` | Re-seeds the API's demo account (`POST /auth/demo`) |
 | `npm run build:standalone` | Builds the serverless single-file preview into `client/dist-standalone/` |
 
 ### Configuration
@@ -284,18 +287,22 @@ poise/
 ## API reference
 
 All endpoints are under `/api` and exchange JSON. Authenticated routes use an httpOnly session cookie.
+The web app doesn't use sign-up or sign-in for now: it starts every session with `POST /auth/guest`. The
+account endpoints remain available in the API.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
+| `POST` | `/auth/guest` | Start a session without sign-up: restore this browser's profile from its device key, or create one |
 | `POST` | `/auth/register` | Create an account |
 | `POST` | `/auth/login` | Sign in |
 | `POST` | `/auth/demo` | Sign in to the demo account (seeded on first use) |
 | `POST` | `/auth/logout` | Sign out |
-| `GET` | `/auth/session` | Current user or `null` |
-| `GET` / `PATCH` / `DELETE` | `/auth/me` | Read, update or delete the account |
+| `GET` | `/auth/session` | Current user or `null` (renews an active session) |
+| `GET` / `PATCH` / `DELETE` | `/auth/me` | Read, update or delete the profile |
 | `POST` | `/auth/password` | Change password |
 | `GET` | `/interviews` | List interviews (`?status=&role=`) |
 | `POST` | `/interviews` | Create an interview and generate its questions |
+| `POST` | `/interviews/sample` | Add a week of sample history to an empty profile |
 | `GET` | `/interviews/:id` | Get an interview (polls while evaluating) |
 | `POST` | `/interviews/:id/answers` | Submit or skip the current question |
 | `POST` | `/interviews/:id/complete` | Finish and build the debrief |
@@ -321,9 +328,9 @@ npm test
   pace, sentence estimation for unpunctuated transcripts, STAR detection, and lossless annotation.
 - **`server/test/engine.test.ts`** — question bank integrity, selection and tailoring, scoring order
   (strong > partial > weak > off-topic), feedback, follow-ups.
-- **`server/test/api.test.ts`** — auth, validation, the full interview lifecycle with follow-ups and
-  background evaluation, ordering rules, ownership isolation, the question lab, demo seeding and account
-  deletion.
+- **`server/test/api.test.ts`** — browser profiles (creation, restore by device key, wrong keys, sample
+  history, erasing), auth, validation, the full interview lifecycle with follow-ups and background
+  evaluation, ordering rules, ownership isolation, the question lab, demo seeding and account deletion.
 
 CI runs type-checks, tests (against a MongoDB service) and the production build on every push.
 
@@ -344,14 +351,17 @@ on secure origins.
 
 ## Security & privacy
 
-- Passwords hashed with **bcrypt** (12 rounds); login timing doesn't reveal which emails exist.
+- **No sign-up**: each browser's profile is protected by a random 256-bit device key (stored bcrypt-hashed
+  on the server) that restores the session if the cookie expires.
+- Account passwords (API only for now) hashed with **bcrypt** (12 rounds); login timing doesn't reveal
+  which emails exist.
 - Sessions in **httpOnly, SameSite=Lax** cookies (not readable by JavaScript); `Secure` in production.
 - **Zod** validation on every request body; consistent error responses; Helmet security headers with a
   strict Content-Security-Policy.
 - **Rate limiting** on authentication and on AI-backed endpoints.
 - Every interview query is scoped to its owner; other users get a 404.
 - Audio and video are processed **in the browser only**; the server stores answer text, not recordings.
-- Users can delete their account and all data from Settings.
+- Users can erase their profile and all its data from Settings.
 
 ## Future work
 

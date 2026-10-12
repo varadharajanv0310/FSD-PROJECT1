@@ -1,4 +1,6 @@
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { Types } from "mongoose";
 import type { ExperienceLevel, RoleId, User, UserPreferences } from "@poise/shared";
 import { InterviewSessionModel } from "../models/InterviewSession";
 import { SavedQuestionModel } from "../models/SavedQuestion";
@@ -7,6 +9,39 @@ import { badRequest, conflict, forbidden, notFound, unauthorized } from "../util
 import { serializeUser } from "../core/serialize";
 
 const SALT_ROUNDS = 12;
+/** Device keys are 256-bit random secrets, so a cheaper bcrypt cost is plenty. */
+const DEVICE_KEY_ROUNDS = 10;
+
+export interface DeviceCredentials {
+  id: string;
+  key: string;
+}
+
+/**
+ * Starts a session without sign-up. Each browser gets its own private profile,
+ * identified by a random device key that the browser keeps. Presenting the key
+ * again restores the same profile — after the session cookie expires, or when
+ * the server's signing secret changes. Without a valid key, a new profile is
+ * created and its key returned once.
+ */
+export async function startGuestSession(device?: DeviceCredentials): Promise<{ user: User; deviceKey?: string }> {
+  if (device) {
+    const existing = await UserModel.findById(device.id).select("+passwordHash").lean();
+    if (existing?.isGuest && (await bcrypt.compare(device.key, existing.passwordHash))) {
+      return { user: serializeUser(existing) };
+    }
+  }
+  const deviceKey = randomBytes(32).toString("hex");
+  const id = new Types.ObjectId();
+  const user = await UserModel.create({
+    _id: id,
+    // Never shown or used to sign in; it only satisfies the unique email index.
+    email: `${id.toString()}@guest.poise.invalid`,
+    passwordHash: await bcrypt.hash(deviceKey, DEVICE_KEY_ROUNDS),
+    isGuest: true,
+  });
+  return { user: serializeUser(user.toObject()), deviceKey };
+}
 
 export async function registerUser(input: { name: string; email: string; password: string }): Promise<User> {
   const email = input.email.toLowerCase().trim();
@@ -28,7 +63,7 @@ export async function authenticate(email: string, password: string): Promise<Use
 
 export async function getUser(userId: string): Promise<User> {
   const user = await UserModel.findById(userId).lean();
-  if (!user) throw unauthorized("Your account no longer exists. Please sign in again.");
+  if (!user) throw unauthorized("We couldn't find your profile. Refresh the page to continue.");
   return serializeUser(user);
 }
 

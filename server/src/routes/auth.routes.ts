@@ -9,11 +9,12 @@ import {
   deleteAccount,
   getUser,
   registerUser,
+  startGuestSession,
   updateProfile,
 } from "../services/auth.service";
 import { ensureDemoUser } from "../services/demo.service";
 import { forbidden } from "../utils/errors";
-import { LoginSchema, PasswordSchema, ProfileSchema, RegisterSchema } from "./schemas";
+import { GuestSchema, LoginSchema, PasswordSchema, ProfileSchema, RegisterSchema } from "./schemas";
 
 export const authRouter = Router();
 
@@ -36,15 +37,29 @@ authRouter.post("/demo", authLimiter, async (_req, res) => {
   res.json({ user: await getUser(userId) });
 });
 
+/**
+ * Starts a session without sign-up: restores this browser's profile from its
+ * device key, or creates a new profile and returns its key (once).
+ */
+authRouter.post("/guest", authLimiter, validateBody(GuestSchema), async (req, res) => {
+  const { user, deviceKey } = await startGuestSession(req.body.device);
+  setAuthCookie(res, signToken(user.id));
+  res.status(deviceKey ? 201 : 200).json(deviceKey ? { user, deviceKey } : { user });
+});
+
 authRouter.post("/logout", (_req, res) => {
   clearAuthCookie(res);
   res.status(204).end();
 });
 
-/** The current session, if any — returns `{ user: null }` for guests instead of a 401. */
+/**
+ * The current session, if any — returns `{ user: null }` instead of a 401 when
+ * there is none. An active session is renewed, so regular visitors stay signed in.
+ */
 authRouter.get("/session", async (req, res) => {
   const userId = optionalUserId(req);
   const user = userId ? await getUser(userId).catch(() => null) : null;
+  if (user) setAuthCookie(res, signToken(user.id));
   res.json({ user });
 });
 

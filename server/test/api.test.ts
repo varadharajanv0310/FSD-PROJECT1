@@ -213,6 +213,72 @@ describe.skipIf(!available)("API", () => {
     });
   });
 
+  describe("browser profiles (no sign-up)", () => {
+    async function startProfile(device?: { id: string; key: string }) {
+      const client = agent();
+      const response = await client.post("/api/auth/guest").send(device ? { device } : {});
+      return { client, response };
+    }
+
+    it("creates a private profile without sign-up and restores it from the device key", async () => {
+      const { client, response } = await startProfile();
+      expect(response.status).toBe(201);
+      expect(response.body.user).toMatchObject({ isGuest: true, isDemo: false, name: "", email: "" });
+      expect(response.body.deviceKey).toMatch(/^[a-f\d]{64}$/);
+      expect((await client.get("/api/auth/session")).body.user.id).toBe(response.body.user.id);
+      expect((await client.post("/api/interviews").send(config)).status).toBe(201);
+
+      // A new browser session (no cookie) with the same device key gets the same profile back.
+      const device = { id: response.body.user.id, key: response.body.deviceKey };
+      const restored = await startProfile(device);
+      expect(restored.response.status).toBe(200);
+      expect(restored.response.body.user.id).toBe(device.id);
+      expect(restored.response.body).not.toHaveProperty("deviceKey");
+      expect((await restored.client.get("/api/interviews")).body.sessions).toHaveLength(1);
+    });
+
+    it("never restores a profile with the wrong key", async () => {
+      const { response } = await startProfile();
+      const wrong = await startProfile({ id: response.body.user.id, key: "0".repeat(64) });
+      expect(wrong.response.status).toBe(201);
+      expect(wrong.response.body.user.id).not.toBe(response.body.user.id);
+      expect((await agent().post("/api/auth/guest").send({ device: { id: "nope", key: "x" } })).status).toBe(400);
+    });
+
+    it("renews an active session and allows an empty name", async () => {
+      const { client } = await startProfile();
+      const session = await client.get("/api/auth/session");
+      expect(String(session.headers["set-cookie"])).toContain("poise_session=");
+      const named = await client.patch("/api/auth/me").send({ name: "  Priya  " });
+      expect(named.body.user.name).toBe("Priya");
+      const cleared = await client.patch("/api/auth/me").send({ name: "" });
+      expect(cleared.status).toBe(200);
+      expect(cleared.body.user.name).toBe("");
+    });
+
+    it("loads sample history into an empty profile only", async () => {
+      const { client } = await startProfile();
+      const sample = await client.post("/api/interviews/sample");
+      expect(sample.status).toBe(201);
+      expect(sample.body.added).toBeGreaterThanOrEqual(5);
+      const stats = await client.get("/api/stats");
+      expect(stats.body.stats.totals.completed).toBeGreaterThanOrEqual(5);
+      expect((await client.post("/api/interviews/sample")).status).toBe(409);
+      expect((await agent().post("/api/interviews/sample")).status).toBe(401);
+    });
+
+    it("erases a profile so its device key no longer works", async () => {
+      const { client, response } = await startProfile();
+      await client.post("/api/interviews/sample").expect(201);
+      await client.delete("/api/auth/me").expect(204);
+      const device = { id: response.body.user.id, key: response.body.deviceKey };
+      const fresh = await startProfile(device);
+      expect(fresh.response.status).toBe(201);
+      expect(fresh.response.body.user.id).not.toBe(device.id);
+      expect((await fresh.client.get("/api/interviews")).body.sessions).toHaveLength(0);
+    });
+  });
+
   describe("demo and account deletion", () => {
     it("seeds the demo account with history", async () => {
       const client = agent();

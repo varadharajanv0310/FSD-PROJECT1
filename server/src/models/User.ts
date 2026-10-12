@@ -13,12 +13,14 @@ const PreferencesSchema = new Schema(
 
 const UserSchema = new Schema(
   {
-    name: { type: String, required: true, trim: true, maxlength: 80 },
+    // Optional: browser profiles start without a name until the user sets one.
+    name: { type: String, trim: true, maxlength: 80, default: "" },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 160 },
     passwordHash: { type: String, required: true, select: false },
     targetRole: { type: String, enum: ROLE_IDS },
     level: { type: String, enum: LEVELS },
     isDemo: { type: Boolean, default: false },
+    isGuest: { type: Boolean, default: false },
     preferences: { type: PreferencesSchema, default: () => ({}) },
   },
   { timestamps: true },

@@ -5,7 +5,6 @@ import { Reveal } from "@/components/brand/Reveal";
 import { Waveform } from "@/components/brand/Waveform";
 import { ButtonLink } from "@/components/ui/Button";
 import { RoleIcon } from "@/lib/roles";
-import { useAuth } from "@/providers/AuthProvider";
 
 export const Container = ({ className = "", children }: { className?: string; children: React.ReactNode }) => (
   <div className={`mx-auto max-w-[1200px] px-5 sm:px-8 ${className}`}>{children}</div>
@@ -77,7 +76,6 @@ export function Intro() {
 /* ── Gradient panel ──────────────────────────────────────────────────── */
 
 export function GradientPanel() {
-  const { user } = useAuth();
   return (
     <section className="relative">
       <div className="noise relative overflow-hidden bg-brand-gradient">
@@ -106,7 +104,7 @@ export function GradientPanel() {
                 Ten minutes, one role, a handful of questions. Start your first mock interview and see exactly where
                 you stand.
               </p>
-              <ButtonLink to={user ? "/app/new" : "/signup"} variant="light" caps arrow className="mt-5">
+              <ButtonLink to="/app/new" variant="light" caps arrow className="mt-5">
                 Start practicing
               </ButtonLink>
             </Reveal>

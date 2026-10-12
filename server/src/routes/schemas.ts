@@ -22,8 +22,18 @@ export const LoginSchema = z.object({
   password: z.string().min(1, "Enter your password.").max(200),
 });
 
+export const GuestSchema = z.object({
+  device: z
+    .object({
+      id: z.string().regex(/^[a-f\d]{24}$/i),
+      key: z.string().regex(/^[a-f\d]{64}$/i),
+    })
+    .optional(),
+});
+
 export const ProfileSchema = z.object({
-  name: trimmed(80).min(1).optional(),
+  // May be empty: browser profiles don't need a name.
+  name: trimmed(80).optional(),
   targetRole: z.enum(ROLE_IDS).nullable().optional(),
   level: z.enum(LEVELS).nullable().optional(),
   preferences: z

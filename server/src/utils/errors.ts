@@ -12,7 +12,7 @@ export class HttpError extends Error {
 
 export const badRequest = (message: string, details?: unknown) =>
   new HttpError(400, "bad_request", message, details);
-export const unauthorized = (message = "Please sign in to continue.") =>
+export const unauthorized = (message = "Your session has ended. Refresh the page to continue.") =>
   new HttpError(401, "unauthorized", message);
 export const forbidden = (message = "You don't have access to this resource.") =>
   new HttpError(403, "forbidden", message);

@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import {
   createBrowserRouter,
   createMemoryRouter,
@@ -6,17 +6,17 @@ import {
   Outlet,
   RouterProvider,
   ScrollRestoration,
-  useLocation,
   type RouteObject,
 } from "react-router";
 import { Toaster } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
+import { Logo } from "@/components/brand/Logo";
+import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/primitives";
 import { isStandalone } from "@/lib/env";
 import Landing from "@/pages/Landing";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 
-const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const NewInterview = lazy(() => import("@/pages/NewInterview"));
 const InterviewRoom = lazy(() => import("@/pages/InterviewRoom"));
@@ -34,23 +34,33 @@ function FullPageSpinner() {
   );
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  if (loading) return <FullPageSpinner />;
-  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  return <>{children}</>;
-}
+/**
+ * App pages need a session. There's no sign-in: this restores the browser's
+ * profile, or creates one on the first visit. The old shared demo account is
+ * swapped for a private profile too.
+ */
+function RequireSession({ children }: { children: ReactNode }) {
+  const { user, loading, error, ensureSession } = useAuth();
+  const ready = Boolean(user && !user.isDemo);
 
-function GuestOnly({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  if (loading) return <FullPageSpinner />;
-  if (user) {
-    const next = new URLSearchParams(location.search).get("next");
-    return <Navigate to={next?.startsWith("/") ? next : "/app"} replace />;
+  useEffect(() => {
+    if (!loading && !ready) ensureSession();
+  }, [loading, ready, ensureSession]);
+
+  if (ready) return <>{children}</>;
+  if (error) {
+    return (
+      <div className="flex min-h-[80vh] flex-col items-center justify-center px-5 text-center">
+        <Logo />
+        <h1 className="mt-10 font-display text-[28px] font-semibold">We couldn't open Poise</h1>
+        <p className="mt-2 max-w-[380px] text-[15px] leading-relaxed text-muted">{error.message}</p>
+        <Button className="mt-6" onClick={ensureSession}>
+          Try again
+        </Button>
+      </div>
+    );
   }
-  return <>{children}</>;
+  return <FullPageSpinner />;
 }
 
 function Root() {
@@ -70,15 +80,16 @@ const routes: RouteObject[] = [
     element: <Root />,
     children: [
       { path: "/", element: <Landing /> },
-      { path: "/login", element: <GuestOnly><AuthPage mode="login" /></GuestOnly> },
-      { path: "/signup", element: <GuestOnly><AuthPage mode="signup" /></GuestOnly> },
+      // Sign-in and sign-up are gone for now; old links open the app instead.
+      { path: "/login", element: <Navigate to="/app" replace /> },
+      { path: "/signup", element: <Navigate to="/app" replace /> },
       {
         path: "/app/interview/:id",
-        element: <RequireAuth><InterviewRoom /></RequireAuth>,
+        element: <RequireSession><InterviewRoom /></RequireSession>,
       },
       {
         path: "/app",
-        element: <RequireAuth><AppShell /></RequireAuth>,
+        element: <RequireSession><AppShell /></RequireSession>,
         children: [
           { index: true, element: <Dashboard /> },
           { path: "new", element: <NewInterview /> },

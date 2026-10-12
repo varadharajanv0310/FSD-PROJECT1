@@ -294,7 +294,6 @@ const SAMPLE_QUESTIONS: Record<RoleId, string> = {
 };
 
 export function RoleCarousel() {
-  const { user } = useAuth();
   const [active, setActive] = useState(0);
   const n = ROLES.length;
 
@@ -314,7 +313,7 @@ export function RoleCarousel() {
           <p className="mx-auto mt-4 max-w-[460px] text-[15px] text-muted">
             From campus SDE rounds to product sense — start organising, prioritising and nailing your answers today.
           </p>
-          <ButtonLink to={user ? "/app/new" : "/signup"} variant="outline" size="sm" caps arrow className="mt-6">
+          <ButtonLink to="/app/new" variant="outline" size="sm" caps arrow className="mt-6">
             Try it for free
           </ButtonLink>
         </Reveal>
@@ -422,6 +421,10 @@ export function Tips() {
 
 const FAQS = [
   {
+    q: "Do I need to create an account?",
+    a: "No. Poise sets up a private profile for your browser the first time you open it, so you can start practising straight away. Add your name and target role in Settings if you like, and erase everything there whenever you want.",
+  },
+  {
     q: "Do I need an AI API key to use Poise?",
     a: "No. With an Anthropic API key, Claude generates questions and writes feedback. Without one, Poise's built-in engine uses a curated bank of 115 questions and a transparent scoring rubric, so every feature still works — even offline.",
   },
@@ -516,7 +519,7 @@ export function FinalCTA() {
           <p className="mx-auto mt-5 max-w-[460px] text-[15px] leading-relaxed text-muted">
             Take control of your preparation. Rehearse, get honest feedback and walk in knowing exactly what to say.
           </p>
-          <ButtonLink to={user ? "/app/new" : "/signup"} variant="outline" caps arrow className="mt-8 h-12 px-6">
+          <ButtonLink to="/app/new" variant="outline" caps arrow className="mt-8 h-12 px-6">
             {user ? "Start a mock interview" : "Try it for free"}
           </ButtonLink>
         </Reveal>
@@ -552,14 +555,6 @@ const FOOTER_LINKS = [
       { label: "New interview", href: "/app/new" },
       { label: "Question lab", href: "/app/practice" },
       { label: "History", href: "/app/history" },
-    ],
-  },
-  {
-    title: "Account",
-    links: [
-      { label: "Sign in", href: "/login" },
-      { label: "Create account", href: "/signup" },
-      { label: "Live demo", href: "/login?demo=1" },
       { label: "Settings", href: "/app/settings" },
     ],
   },
@@ -569,7 +564,7 @@ export function Footer() {
   return (
     <footer className="relative overflow-hidden bg-black text-white">
       <Container className="relative pt-16 sm:pt-20">
-        <div className="grid gap-12 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div className="grid gap-12 lg:grid-cols-[2fr_1fr_1fr]">
           <div>
             <Link to="/" className="inline-flex items-center gap-2 font-display text-[19px] font-semibold tracking-[-0.04em]">
               <LogoMark /> Poise

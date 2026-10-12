@@ -1,13 +1,12 @@
-import { ChevronDown, Cpu, History, LayoutGrid, LogOut, Plus, Settings, Sparkles, WifiOff } from "lucide-react";
+import { ChevronDown, Cpu, History, LayoutGrid, Plus, Settings, Sparkles, UserRound, WifiOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { PageGlow } from "@/components/brand/Glow";
 import { Logo } from "@/components/brand/Logo";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { isStandalone } from "@/lib/env";
-import { firstName } from "@/lib/format";
 import { useEngine } from "@/lib/queries";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -45,14 +44,13 @@ function Avatar({ name, className }: { name: string; className?: string }) {
       style={{ background: "linear-gradient(135deg,#ff8a3d,#e8336f 55%,#7c3aed)" }}
       aria-hidden="true"
     >
-      {initials}
+      {initials || <UserRound className="size-4.5" />}
     </span>
   );
 }
 
 function UserMenu() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -78,6 +76,7 @@ function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Your profile"
         className="flex items-center gap-2 rounded-full p-1 pr-2 transition-colors hover:bg-mist"
       >
         <Avatar name={user.name} />
@@ -94,9 +93,10 @@ function UserMenu() {
             className="absolute right-0 top-[calc(100%+8px)] z-50 w-64 origin-top-right rounded-2xl border border-line bg-white p-2 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.25)]"
           >
             <div className="px-3 py-2.5">
-              <p className="truncate text-[14px] font-semibold">{user.name}</p>
-              <p className="truncate text-[12.5px] text-muted">{user.email}</p>
-              {user.isDemo && <p className="mt-1.5 text-[12px] text-[#a8174a]">Shared demo account</p>}
+              <p className="truncate text-[14px] font-semibold">{user.name || "Your profile"}</p>
+              <p className="truncate text-[12.5px] text-muted">
+                {user.isGuest ? (isStandalone ? "Saved on this device" : "Saved in this browser") : user.email}
+              </p>
             </div>
             <div className="my-1 h-px bg-line" />
             <Link
@@ -107,17 +107,6 @@ function UserMenu() {
             >
               <Settings className="size-4 text-muted" /> Settings
             </Link>
-            <button
-              role="menuitem"
-              type="button"
-              onClick={async () => {
-                await logout();
-                navigate("/");
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[14px] hover:bg-mist"
-            >
-              <LogOut className="size-4 text-muted" /> Sign out
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -126,7 +115,6 @@ function UserMenu() {
 }
 
 export function AppShell() {
-  const { user } = useAuth();
   const location = useLocation();
 
   return (
@@ -164,30 +152,6 @@ export function AppShell() {
         </div>
       </header>
 
-      {user?.isDemo && (
-        <div className="border-b border-line/70 bg-brand-soft">
-          <p className="mx-auto max-w-[1200px] px-5 py-2 text-center text-[13px] text-ink-2 sm:px-8">
-            {isStandalone ? (
-              <>
-                You're exploring the <span className="font-semibold">demo account</span> on this device.{" "}
-                <Link to="/signup" className="font-medium underline underline-offset-2">
-                  Create your own
-                </Link>{" "}
-                to start fresh.
-              </>
-            ) : (
-              <>
-                You're exploring the <span className="font-semibold">demo account</span>, shared with other visitors.{" "}
-                <Link to="/signup" className="font-medium underline underline-offset-2">
-                  Create your own
-                </Link>{" "}
-                to keep your progress private.
-              </>
-            )}
-          </p>
-        </div>
-      )}
-
       <AnimatePresence mode="wait">
         <motion.main
           key={location.pathname}
@@ -220,7 +184,6 @@ export function AppShell() {
           <Plus className="size-5" />
         </Link>
       </nav>
-      <span className="sr-only">{user ? `Signed in as ${firstName(user.name)}` : ""}</span>
     </div>
   );
 }

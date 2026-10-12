@@ -81,6 +81,18 @@ export function useUpdateProfile() {
   });
 }
 
+/** Fills an empty profile with a week of example interviews. */
+export function useLoadSampleHistory() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.loadSampleHistory(),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["sessions"] });
+      void client.invalidateQueries({ queryKey: keys.stats });
+    },
+  });
+}
+
 export function useSavedQuestions() {
   return useQuery({ queryKey: keys.saved, queryFn: async () => (await api.savedQuestions()).questions });
 }

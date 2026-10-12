@@ -1,4 +1,4 @@
-import { Briefcase, Check, ChevronDown, Clock, Keyboard, ListChecks, Mic, Sparkles, X } from "lucide-react";
+import { Briefcase, Check, ChevronDown, Clock, Keyboard, ListChecks, Mic, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -230,16 +230,6 @@ export default function NewInterview() {
 
   return (
     <div>
-      {params.get("welcome") && (
-        <div className="mb-6 flex items-center gap-3 rounded-2xl bg-brand-soft px-5 py-4 text-[14.5px]">
-          <Sparkles className="size-4 shrink-0 text-[#c2410c]" />
-          <p>
-            <span className="font-semibold">Your account is ready.</span> Set up your first mock interview — it takes about ten
-            minutes.
-          </p>
-        </div>
-      )}
-
       <div className="mb-8">
         <p className="serif-accent text-[21px] text-muted">Let's set the stage.</p>
         <h1 className="font-display text-[40px] font-semibold leading-[1.04] sm:text-[48px]">New mock interview</h1>

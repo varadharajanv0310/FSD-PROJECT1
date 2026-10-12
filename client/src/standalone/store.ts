@@ -8,14 +8,12 @@ import type { SessionRecord } from "@server/core/session";
  * the rest of the visit.
  */
 
+/** The profile for this device. There's no sign-up, so it has no email or password. */
 export interface LocalUser {
   id: string;
   name: string;
-  email: string;
-  passwordHash: string;
   targetRole?: RoleId;
   level?: ExperienceLevel;
-  isDemo: boolean;
   preferences: UserPreferences;
   createdAt: string;
 }
@@ -83,26 +81,4 @@ export function newId(): string {
   const cryptoApi = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (cryptoApi?.randomUUID) return cryptoApi.randomUUID().replace(/-/g, "").slice(0, 24);
   return Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-}
-
-/**
- * Hashes a password for local storage. This preview never sends credentials
- * anywhere; hashing just avoids keeping them in plain text on the device.
- */
-export async function hashPassword(email: string, password: string): Promise<string> {
-  const input = `poise:${email.toLowerCase()}:${password}`;
-  const subtle = (globalThis as { crypto?: { subtle?: SubtleCrypto } }).crypto?.subtle;
-  if (subtle) {
-    const digest = await subtle.digest("SHA-256", new TextEncoder().encode(input));
-    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
-  }
-  // Fallback for contexts without Web Crypto: a simple 53-bit string hash.
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let i = 0; i < input.length; i++) {
-    const ch = input.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  return `fallback:${(4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16)}`;
 }

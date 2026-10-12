@@ -53,7 +53,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
     req.userId = payload.sub;
     next();
   } catch {
-    next(unauthorized("Your session has expired. Please sign in again."));
+    next(unauthorized("Your session has expired. Refresh the page to continue."));
   }
 }
 

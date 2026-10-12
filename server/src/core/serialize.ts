@@ -16,11 +16,12 @@ const idOf = (record: { _id: { toString(): string } | string }) => record._id.to
 export function serializeUser(user: WithId<Omit<UserRecord, "createdAt" | "updatedAt"> & { createdAt?: Date | string }>): User {
   return {
     id: idOf(user),
-    name: user.name,
-    email: user.email,
+    name: user.name ?? "",
+    email: user.isGuest ? "" : user.email,
     targetRole: (user.targetRole ?? undefined) as User["targetRole"],
     level: (user.level ?? undefined) as User["level"],
     isDemo: Boolean(user.isDemo),
+    isGuest: Boolean(user.isGuest),
     preferences: {
       autoReadQuestions: user.preferences?.autoReadQuestions ?? true,
       voiceRate: user.preferences?.voiceRate ?? 1,

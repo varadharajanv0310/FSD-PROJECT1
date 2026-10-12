@@ -162,6 +162,8 @@ export interface User {
   targetRole?: RoleId;
   level?: ExperienceLevel;
   isDemo: boolean;
+  /** A profile created automatically for this browser — no email or password. */
+  isGuest: boolean;
   preferences: UserPreferences;
   createdAt: string;
 }

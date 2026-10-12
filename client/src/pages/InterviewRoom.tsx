@@ -90,7 +90,7 @@ function Lobby({ session, onBegin }: { session: InterviewSession; onBegin: (opts
     <div className="mx-auto grid max-w-[1080px] items-center gap-12 px-5 py-10 lg:grid-cols-[1fr_1fr]">
       <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
         <Orb size={168} state={tts.speaking ? "speaking" : "idle"} />
-        <p className="serif-accent mt-10 text-[22px] text-white/70">Ready when you are, {firstName(user?.name ?? "there")}.</p>
+        <p className="serif-accent mt-10 text-[22px] text-white/70">{user?.name ? `Ready when you are, ${firstName(user.name)}.` : "Ready when you are."}</p>
         <h1 className="mt-1 font-display text-[40px] font-semibold leading-[1.05] sm:text-[48px]">{session.title}</h1>
         <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
           {details.map((detail) => (

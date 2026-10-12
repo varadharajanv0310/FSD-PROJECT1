@@ -3,6 +3,7 @@ import { localEngine } from "../ai";
 import { DEMO_PROFILE, buildDemoSessions } from "../core/demo";
 import { InterviewSessionModel } from "../models/InterviewSession";
 import { UserModel } from "../models/User";
+import { conflict } from "../utils/errors";
 
 export const DEMO_EMAIL = "demo@poise.app";
 const DEMO_PASSWORD = "practice-makes-poise";
@@ -35,4 +36,17 @@ export async function resetDemoUser(): Promise<string> {
   const existing = await UserModel.findOne({ email: DEMO_EMAIL }).lean();
   if (existing) await InterviewSessionModel.deleteMany({ user: existing._id });
   return ensureDemoUser();
+}
+
+/**
+ * Fills an empty profile with the demo's week of practice history, so the
+ * dashboard, trends and reports can be explored straight away.
+ */
+export async function addSampleHistory(userId: string): Promise<{ added: number }> {
+  if (await InterviewSessionModel.exists({ user: userId })) {
+    throw conflict("Sample history can only be added before your first interview.");
+  }
+  const sessions = await buildDemoSessions(localEngine);
+  await InterviewSessionModel.insertMany(sessions.map((session) => ({ ...session, user: userId })));
+  return { added: sessions.length };
 }

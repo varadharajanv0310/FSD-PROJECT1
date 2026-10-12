@@ -4,6 +4,7 @@ import { ROLE_IDS } from "@poise/shared";
 import { currentUserId, requireAuth } from "../middleware/auth";
 import { aiLimiter } from "../middleware/rateLimit";
 import { validateBody } from "../middleware/validate";
+import { addSampleHistory } from "../services/demo.service";
 import {
   completeSession,
   createSession,
@@ -31,6 +32,11 @@ interviewRouter.get("/", async (req, res) => {
 interviewRouter.post("/", aiLimiter, validateBody(InterviewConfigSchema), async (req, res) => {
   const session = await createSession(currentUserId(req), req.body);
   res.status(201).json({ session });
+});
+
+/** Adds the demo's practice history to an empty profile. */
+interviewRouter.post("/sample", aiLimiter, async (req, res) => {
+  res.status(201).json(await addSampleHistory(currentUserId(req)));
 });
 
 interviewRouter.get("/:id", async (req, res) => {

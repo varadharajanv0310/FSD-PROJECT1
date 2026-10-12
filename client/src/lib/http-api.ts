@@ -16,6 +16,7 @@ import type {
 } from "@poise/shared";
 
 import { ApiError } from "./api-error";
+import { readDevice, writeDevice, type DeviceCredentials } from "./device";
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let response: Response;
@@ -39,22 +40,34 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const httpApi = {
-  // Auth
+  // Profile (no sign-up: each browser has its own profile)
   currentUser: () => request<{ user: User | null }>("GET", "/auth/session"),
-  login: (email: string, password: string) => request<{ user: User }>("POST", "/auth/login", { email, password }),
-  register: (name: string, email: string, password: string) =>
-    request<{ user: User }>("POST", "/auth/register", { name, email, password }),
-  demo: () => request<{ user: User }>("POST", "/auth/demo"),
-  logout: () => request<void>("POST", "/auth/logout"),
+  /** Restores this browser's profile, or creates one the first time. */
+  startSession: async (): Promise<{ user: User }> => {
+    const start = (device: DeviceCredentials | undefined) =>
+      request<{ user: User; deviceKey?: string }>("POST", "/auth/guest", { device });
+    const result = await start(readDevice()).catch((error: unknown) => {
+      // A malformed stored key can never succeed — forget it and start a new profile.
+      if (error instanceof ApiError && error.status === 400) {
+        writeDevice(null);
+        return start(undefined);
+      }
+      throw error;
+    });
+    if (result.deviceKey) writeDevice({ id: result.user.id, key: result.deviceKey });
+    return { user: result.user };
+  },
   updateProfile: (update: {
     name?: string;
     targetRole?: User["targetRole"] | null;
     level?: User["level"] | null;
     preferences?: Partial<UserPreferences>;
   }) => request<{ user: User }>("PATCH", "/auth/me", update),
-  changePassword: (currentPassword: string, newPassword: string) =>
-    request<void>("POST", "/auth/password", { currentPassword, newPassword }),
-  deleteAccount: () => request<void>("DELETE", "/auth/me"),
+  /** Permanently erases the profile and everything in it. */
+  deleteAccount: async () => {
+    await request<void>("DELETE", "/auth/me");
+    writeDevice(null);
+  },
 
   // Meta
   engine: () => request<{ engine: EngineStatus }>("GET", "/engine"),
@@ -71,6 +84,7 @@ export const httpApi = {
   },
   session: (id: string) => request<{ session: InterviewSession }>("GET", `/interviews/${id}`),
   createSession: (config: InterviewConfig) => request<{ session: InterviewSession }>("POST", "/interviews", config),
+  loadSampleHistory: () => request<{ added: number }>("POST", "/interviews/sample"),
   answer: (
     id: string,
     payload: { questionId: string; text: string; durationSec: number; mode: AnswerMode; skipped: boolean },

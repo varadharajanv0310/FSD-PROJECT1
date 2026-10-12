@@ -1,7 +1,6 @@
 import { Check, TrendingDown } from "lucide-react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
-import { Link } from "react-router";
 import { GlowBand } from "@/components/brand/Glow";
 import { ButtonLink } from "@/components/ui/Button";
 import { useAuth } from "@/providers/AuthProvider";
@@ -76,14 +75,10 @@ export function Hero() {
           transition={{ duration: 0.9, delay: 0.26, ease }}
           className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
-          <ButtonLink to={user ? "/app/new" : "/signup"} variant="outline" caps arrow className="h-12 px-6">
+          <ButtonLink to="/app/new" variant="outline" caps arrow className="h-12 px-6">
             {user ? "Start a mock interview" : "Try it for free"}
           </ButtonLink>
-          {!user && (
-            <Link to="/login?demo=1" className="text-[14px] text-muted underline-offset-4 transition-colors hover:text-ink hover:underline">
-              or explore the live demo
-            </Link>
-          )}
+          <p className="text-[14px] text-muted">No sign-up needed.</p>
         </motion.div>
       </div>
 

@@ -14,14 +14,14 @@ import {
 } from "@poise/shared";
 import { LocalEngine } from "@server/ai/local/engine";
 import { skippedEvaluation } from "@server/ai/local/feedback";
-import { buildDemoSessions, DEMO_PROFILE } from "@server/core/demo";
+import { buildDemoSessions } from "@server/core/demo";
 import { assembleReport, reportInputFor } from "@server/core/report";
 import { serializeSavedQuestion, serializeSession, summarizeSession } from "@server/core/serialize";
 import { questionContext, toStoredQuestion } from "@server/core/session";
 import { computeDashboardStats } from "@server/core/stats";
 import { ApiError } from "@/lib/api-error";
 import type { httpApi } from "@/lib/http-api";
-import { hashPassword, newId, store, type LocalSession, type LocalUser } from "./store";
+import { newId, store, type LocalSession, type LocalUser } from "./store";
 
 /**
  * The standalone build's backend: the same contract as the Express API,
@@ -30,7 +30,6 @@ import { hashPassword, newId, store, type LocalSession, type LocalUser } from ".
  */
 
 const engine = new LocalEngine();
-const DEMO_EMAIL = "demo@poise.app";
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   autoReadQuestions: true,
@@ -44,8 +43,8 @@ const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const badRequest = (message: string) => new ApiError(400, "bad_request", message);
-const unauthorized = (message = "Please sign in to continue.") => new ApiError(401, "unauthorized", message);
-const forbidden = (message: string) => new ApiError(403, "forbidden", message);
+const unauthorized = (message = "Your session has ended. Refresh the page to continue.") =>
+  new ApiError(401, "unauthorized", message);
 const notFound = (message = "We couldn't find that.") => new ApiError(404, "not_found", message);
 const conflict = (message: string) => new ApiError(409, "conflict", message);
 
@@ -53,10 +52,11 @@ function toUser(user: LocalUser): User {
   return clone({
     id: user.id,
     name: user.name,
-    email: user.email,
+    email: "",
     targetRole: user.targetRole,
     level: user.level,
-    isDemo: user.isDemo,
+    isDemo: false,
+    isGuest: true,
     preferences: { ...DEFAULT_PREFERENCES, ...user.preferences },
     createdAt: user.createdAt,
   });
@@ -74,44 +74,6 @@ function ownedSession(id: string): LocalSession {
   const session = store.state.sessions.find((s) => s._id === id && s.userId === user.id);
   if (!session) throw notFound("We couldn't find that interview.");
   return session;
-}
-
-function signIn(user: LocalUser) {
-  store.update((draft) => {
-    draft.currentUserId = user.id;
-  });
-  return { user: toUser(user) };
-}
-
-async function ensureDemoUser(): Promise<LocalUser> {
-  let user = store.state.users.find((u) => u.email === DEMO_EMAIL);
-  if (!user) {
-    user = {
-      id: newId(),
-      name: DEMO_PROFILE.name,
-      email: DEMO_EMAIL,
-      passwordHash: "",
-      targetRole: DEMO_PROFILE.targetRole,
-      level: DEMO_PROFILE.level,
-      isDemo: true,
-      preferences: { ...DEFAULT_PREFERENCES },
-      createdAt: new Date().toISOString(),
-    };
-    const created = user;
-    store.update((draft) => {
-      draft.users.push(created);
-    });
-  }
-  const demo = user;
-  if (!store.state.sessions.some((s) => s.userId === demo.id)) {
-    const sessions = await buildDemoSessions(engine);
-    store.update((draft) => {
-      for (const session of sessions) {
-        draft.sessions.push({ ...clone(session), _id: newId(), userId: demo.id });
-      }
-    });
-  }
-  return demo;
 }
 
 function validateConfig(config: InterviewConfig) {
@@ -145,59 +107,33 @@ function evaluate(
 }
 
 export const localApi: typeof httpApi = {
-  // ── Auth ───────────────────────────────────────────────────────────────
+  // ── Profile (no sign-up: one profile per device) ─────────────────────────
   async currentUser() {
     const { currentUserId, users } = store.state;
     const user = users.find((u) => u.id === currentUserId);
     return { user: user ? toUser(user) : null };
   },
 
-  async login(email, password) {
-    const normalized = email.toLowerCase().trim();
-    const user = store.state.users.find((u) => u.email === normalized && !u.isDemo);
-    if (!user || user.passwordHash !== (await hashPassword(normalized, password))) {
-      throw unauthorized("That email and password don't match.");
-    }
-    return signIn(user);
-  },
-
-  async register(name, email, password) {
-    const normalized = email.toLowerCase().trim();
-    if (!name.trim()) throw badRequest("name: Please tell us your name.");
-    if (!/^\S+@\S+\.\S+$/.test(normalized)) throw badRequest("email: Enter a valid email address.");
-    if (password.length < 8) throw badRequest("password: Use at least 8 characters.");
-    if (store.state.users.some((u) => u.email === normalized)) {
-      throw conflict("An account with this email already exists. Try signing in.");
-    }
+  async startSession() {
+    const existing = store.state.users.find((u) => u.id === store.state.currentUserId);
+    if (existing) return { user: toUser(existing) };
     const user: LocalUser = {
       id: newId(),
-      name: name.trim().slice(0, 80),
-      email: normalized,
-      passwordHash: await hashPassword(normalized, password),
-      isDemo: false,
+      name: "",
       preferences: { ...DEFAULT_PREFERENCES },
       createdAt: new Date().toISOString(),
     };
     store.update((draft) => {
       draft.users.push(user);
+      draft.currentUserId = user.id;
     });
-    return signIn(user);
-  },
-
-  async demo() {
-    return signIn(await ensureDemoUser());
-  },
-
-  async logout() {
-    store.update((draft) => {
-      draft.currentUserId = null;
-    });
+    return { user: toUser(user) };
   },
 
   async updateProfile(update) {
     const user = currentUser();
     store.update(() => {
-      if (update.name !== undefined) user.name = update.name.trim().slice(0, 80) || user.name;
+      if (update.name !== undefined) user.name = update.name.trim().slice(0, 80);
       if (update.targetRole !== undefined) user.targetRole = update.targetRole ?? undefined;
       if (update.level !== undefined) user.level = update.level ?? undefined;
       if (update.preferences) user.preferences = { ...DEFAULT_PREFERENCES, ...user.preferences, ...update.preferences };
@@ -205,22 +141,8 @@ export const localApi: typeof httpApi = {
     return { user: toUser(user) };
   },
 
-  async changePassword(currentPassword, newPassword) {
-    const user = currentUser();
-    if (user.isDemo) throw forbidden("The demo account's password can't be changed.");
-    if (user.passwordHash !== (await hashPassword(user.email, currentPassword))) {
-      throw badRequest("Your current password is incorrect.");
-    }
-    if (newPassword.length < 8) throw badRequest("newPassword: Use at least 8 characters.");
-    const hash = await hashPassword(user.email, newPassword);
-    store.update(() => {
-      user.passwordHash = hash;
-    });
-  },
-
   async deleteAccount() {
     const user = currentUser();
-    if (user.isDemo) throw forbidden("The shared demo account can't be deleted.");
     store.update((draft) => {
       draft.users = draft.users.filter((u) => u.id !== user.id);
       draft.sessions = draft.sessions.filter((s) => s.userId !== user.id);
@@ -348,6 +270,18 @@ export const localApi: typeof httpApi = {
       });
     }
     return { session: clone(serializeSession(session)) };
+  },
+
+  async loadSampleHistory() {
+    const user = currentUser();
+    if (store.state.sessions.some((s) => s.userId === user.id)) {
+      throw conflict("Sample history can only be added before your first interview.");
+    }
+    const sessions = await buildDemoSessions(engine);
+    store.update((draft) => {
+      for (const session of sessions) draft.sessions.push({ ...clone(session), _id: newId(), userId: user.id });
+    });
+    return { added: sessions.length };
   },
 
   async deleteSession(id) {

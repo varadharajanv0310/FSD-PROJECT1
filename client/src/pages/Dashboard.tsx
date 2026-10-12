@@ -1,5 +1,6 @@
 import { ArrowRight, ArrowUpRight, CheckCircle2, CircleAlert, Clock, Flame, MessageSquareText, Play, Target, TrendingUp } from "lucide-react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 import {
   DIMENSIONS,
   DIMENSION_INFO,
@@ -13,14 +14,15 @@ import {
 import { ScoreTrendChart } from "@/components/app/charts";
 import { Orb } from "@/components/brand/Orb";
 import { Reveal } from "@/components/brand/Reveal";
-import { ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Meter } from "@/components/ui/Meter";
 import { Card, Chip, SectionHeading, Skeleton } from "@/components/ui/primitives";
 import { ScorePill } from "@/components/ui/ScoreRing";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { cn } from "@/lib/cn";
 import { firstName, formatMinutes, greeting, pluralize, relativeDate } from "@/lib/format";
-import { useStats } from "@/lib/queries";
+import { ApiError } from "@/lib/api";
+import { useLoadSampleHistory, useStats } from "@/lib/queries";
 import { RoleIcon, ROLE_GRADIENTS } from "@/lib/roles";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -119,6 +121,12 @@ function HabitRow({ label, value, unit, target, good }: { label: string; value: 
 }
 
 function Welcome({ name }: { name: string }) {
+  const loadSample = useLoadSampleHistory();
+  const showSample = () =>
+    loadSample.mutate(undefined, {
+      onSuccess: ({ added }) => toast.success(`Added ${pluralize(added, "sample interview")}. Explore away!`),
+      onError: (error) => toast.error(error instanceof ApiError ? error.message : "Couldn't load the sample history."),
+    });
   const presets = [
     { role: "software-engineer", type: "mixed", title: "Campus SDE round", detail: "CS fundamentals + HR · 6 questions" },
     { role: "frontend", type: "technical", title: "Frontend deep-dive", detail: "JavaScript, React, performance" },
@@ -130,17 +138,23 @@ function Welcome({ name }: { name: string }) {
         <div className="absolute inset-0" style={{ background: "radial-gradient(60% 80% at 85% 20%, rgb(232 51 111 / 0.5), transparent 70%), radial-gradient(50% 70% at 10% 100%, rgb(255 122 47 / 0.35), transparent 70%)" }} />
         <div className="relative grid items-center gap-10 md:grid-cols-[1.3fr_1fr]">
           <div>
-            <p className="serif-accent text-[22px] text-white/75">Welcome, {firstName(name)}.</p>
+            <p className="serif-accent text-[22px] text-white/75">{name ? `Welcome, ${firstName(name)}.` : "Welcome to Poise."}</p>
             <h1 className="mt-2 font-display text-[38px] font-semibold leading-[1.04] sm:text-[48px]">
               Your first mock interview is ten minutes away.
             </h1>
             <p className="mt-4 max-w-[460px] text-[15px] leading-relaxed text-white/70">
-              Pick a role, answer a few questions out loud, and get a detailed debrief. Your dashboard fills in as you
+              Pick a role, answer a few questions, and get a detailed debrief. Your dashboard fills in as you
               practise.
             </p>
-            <ButtonLink to="/app/new" variant="light" size="lg" arrow className="mt-8">
-              Set up my first interview
-            </ButtonLink>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <ButtonLink to="/app/new" variant="light" size="lg" arrow>
+                Set up my first interview
+              </ButtonLink>
+              <Button variant="glass" size="lg" loading={loadSample.isPending} onClick={showSample}>
+                Explore with sample data
+              </Button>
+            </div>
+            <p className="mt-3 text-[13px] text-white/55">Sample data adds a week of example interviews to look around.</p>
           </div>
           <div className="flex justify-center">
             <Orb size={220} state="speaking" />
@@ -212,8 +226,10 @@ function DashboardContent({ stats, name, targetRole }: { stats: DashboardStats; 
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <p className="serif-accent text-[21px] text-muted">{greeting()},</p>
-          <h1 className="font-display text-[40px] font-semibold leading-[1.02] sm:text-[48px]">{firstName(name)}.</h1>
+          <p className="serif-accent text-[21px] text-muted">{name ? `${greeting()},` : `${greeting()}.`}</p>
+          <h1 className="font-display text-[40px] font-semibold leading-[1.02] sm:text-[48px]">
+            {name ? `${firstName(name)}.` : "Your progress."}
+          </h1>
           <p className="mt-2 text-[15px] text-muted">
             {latest !== undefined
               ? `Your latest interview scored ${latest}. ${delta !== null && delta > 0 ? `That's ${delta} points up since you started.` : "Keep the momentum going."}`

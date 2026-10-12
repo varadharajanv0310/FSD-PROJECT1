@@ -1,4 +1,4 @@
-import { Cpu, ShieldAlert, Volume2, WifiOff } from "lucide-react";
+import { Cpu, HardDrive, ShieldAlert, Volume2, WifiOff } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { cameraSupported } from "@/hooks/useMedia";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { isStandalone } from "@/lib/env";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { useEngine, useUpdateProfile } from "@/lib/queries";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -29,7 +29,7 @@ function Panel({ title, description, children }: { title: string; description?: 
 
 export default function Settings() {
   useDocumentTitle("Settings");
-  const { user, logout } = useAuth();
+  const { user, eraseProfile } = useAuth();
   const navigate = useNavigate();
   const updateProfile = useUpdateProfile();
   const { data: engine } = useEngine();
@@ -39,9 +39,6 @@ export default function Settings() {
   const [targetRole, setTargetRole] = useState<RoleId | "">(user?.targetRole ?? "");
   const [level, setLevel] = useState<ExperienceLevel | "">(user?.level ?? "");
   const [voiceRate, setVoiceRate] = useState(user?.preferences.voiceRate ?? 1);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordSaving, setPasswordSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -68,34 +65,14 @@ export default function Settings() {
   const setPreference = (preferences: Partial<UserPreferences>) =>
     updateProfile.mutate({ preferences }, { onError: () => toast.error("Couldn't save that preference.") });
 
-  const changePassword = async (event: FormEvent) => {
-    event.preventDefault();
-    if (newPassword.length < 8) {
-      toast.error("Use at least 8 characters for your new password.");
-      return;
-    }
-    setPasswordSaving(true);
-    try {
-      await api.changePassword(currentPassword, newPassword);
-      setCurrentPassword("");
-      setNewPassword("");
-      toast.success("Password updated.");
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't update your password.");
-    } finally {
-      setPasswordSaving(false);
-    }
-  };
-
-  const deleteAccount = async () => {
+  const eraseData = async () => {
     setDeleting(true);
     try {
-      await api.deleteAccount();
-      await logout();
-      navigate("/", { replace: true });
-      toast("Your account and data have been deleted.");
+      await eraseProfile();
+      navigate("/app", { replace: true });
+      toast("Your data has been erased. You're starting fresh.");
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't delete your account.");
+      toast.error(error instanceof ApiError ? error.message : "Couldn't erase your data.");
       setDeleting(false);
     }
   };
@@ -107,14 +84,23 @@ export default function Settings() {
         <h1 className="font-display text-[40px] font-semibold leading-[1.04] sm:text-[48px]">Settings</h1>
       </div>
 
-      <Panel title="Profile" description="Your target role and level become the defaults for new interviews.">
+      <Panel title="Profile" description="All optional. Your target role and level become the defaults for new interviews.">
         <form className="grid gap-5 sm:grid-cols-2" onSubmit={saveProfile}>
           <Field label="Name" htmlFor="settings-name">
-            <Input id="settings-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required />
+            <Input
+              id="settings-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={80}
+              placeholder="What should Poise call you?"
+              autoComplete="given-name"
+            />
           </Field>
-          <Field label="Email" htmlFor="settings-email">
-            <Input id="settings-email" value={user.email} disabled />
-          </Field>
+          {!user.isGuest && user.email && (
+            <Field label="Email" htmlFor="settings-email">
+              <Input id="settings-email" value={user.email} disabled />
+            </Field>
+          )}
           <Field label="Target role" htmlFor="settings-role">
             <Select id="settings-role" value={targetRole} onChange={(e) => setTargetRole(e.target.value as RoleId | "")}>
               <option value="">Not set</option>
@@ -208,7 +194,7 @@ export default function Settings() {
           </div>
           <p className="mt-4 text-[14px] leading-relaxed text-muted">
             {isStandalone
-              ? "This preview runs entirely in your browser with Poise's offline engine: a curated bank of 115 questions and a transparent, rubric-based evaluator. Your account and practice history stay on this device. The full app adds Claude-written questions and feedback, spoken answers and camera self-view."
+              ? "This preview runs entirely in your browser with Poise's offline engine: a curated bank of 115 questions and a transparent, rubric-based evaluator. Your profile and practice history stay on this device. The full app adds Claude-written questions and feedback, spoken answers and camera self-view."
               : engine?.provider === "claude"
               ? "Questions, follow-ups and feedback are written by Claude using a fixed scoring rubric. If the API is ever unavailable, Poise falls back to its offline engine automatically."
               : "Poise is using its offline engine: a curated bank of 115 questions and a transparent, rubric-based evaluator. To use Claude, set ANTHROPIC_API_KEY in the server's environment and restart it."}
@@ -216,45 +202,45 @@ export default function Settings() {
         </div>
       </Panel>
 
-      {!user.isDemo && (
-        <Panel title="Password" description="Use at least 8 characters.">
-          <form className="grid gap-5 sm:grid-cols-2" onSubmit={changePassword}>
-            <Field label="Current password" htmlFor="current-password">
-              <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
-            </Field>
-            <Field label="New password" htmlFor="new-password">
-              <Input id="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
-            </Field>
-            <div className="sm:col-span-2">
-              <Button type="submit" variant="soft" loading={passwordSaving}>
-                Update password
-              </Button>
-            </div>
-          </form>
-        </Panel>
-      )}
-
-      {!user.isDemo && (
-        <Panel title="Delete account" description="Permanently remove your account, interviews and saved questions.">
+      <Panel
+        title="Your data"
+        description={
+          isStandalone
+            ? "Everything is stored on this device. There's no account or password."
+            : "Your profile belongs to this browser. There's no account or password."
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-4 rounded-2xl bg-cloud p-5">
+            <HardDrive className="mt-0.5 size-5 shrink-0 text-muted" />
+            <p className="text-[14.5px] leading-relaxed text-ink-2">
+              Your interviews and saved questions stay with this browser. Clearing its site data, or opening Poise in a
+              different browser, starts a new, empty profile.
+            </p>
+          </div>
           <div className="flex items-start gap-4 rounded-2xl border border-[#f3c4c4] bg-[#fdf3f3] p-5">
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-[var(--color-critical)]" />
             <div>
-              <p className="text-[14.5px] text-ink-2">This can't be undone. Your practice history will be erased.</p>
+              <p className="text-[14.5px] text-ink-2">
+                Erase every interview, saved question and setting, and start again with a fresh profile. This can't be
+                undone.
+              </p>
               <Button variant="danger" size="sm" className="mt-4" onClick={() => setDeleteOpen(true)}>
-                Delete my account
+                Erase my data
               </Button>
             </div>
           </div>
-        </Panel>
-      )}
+        </div>
+      </Panel>
 
       <Modal
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        title="Delete your account?"
+        title="Erase all your data?"
         description={
           <>
-            Type <span className="font-semibold text-ink">DELETE</span> to confirm. All interviews and saved questions will be permanently removed.
+            Type <span className="font-semibold text-ink">DELETE</span> to confirm. All interviews, saved questions and
+            settings will be permanently removed.
           </>
         }
       >
@@ -263,8 +249,8 @@ export default function Settings() {
           <Button variant="soft" block onClick={() => setDeleteOpen(false)}>
             Cancel
           </Button>
-          <Button variant="danger" block disabled={deleteConfirm !== "DELETE"} loading={deleting} onClick={deleteAccount}>
-            Delete forever
+          <Button variant="danger" block disabled={deleteConfirm !== "DELETE"} loading={deleting} onClick={eraseData}>
+            Erase everything
           </Button>
         </div>
       </Modal>

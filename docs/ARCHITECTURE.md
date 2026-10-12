@@ -31,12 +31,13 @@ erDiagram
 
   USER {
     ObjectId _id
-    string name
-    string email "unique, lowercase"
-    string passwordHash "bcrypt, never selected by default"
+    string name "optional"
+    string email "unique, lowercase (placeholder for browser profiles)"
+    string passwordHash "bcrypt of password or device key, never selected by default"
     string targetRole
     string level
     bool isDemo
+    bool isGuest "browser profile, no sign-up"
     object preferences "autoRead, voiceRate, liveMetrics, camera"
   }
   INTERVIEW_SESSION {
@@ -204,10 +205,15 @@ schema-validated object; the server clamps scores and computes the overall itsel
 
 ## 6. Security
 
+- **No sign-up (for now).** Opening the app calls `POST /auth/guest`. The first time, the server creates a
+  browser profile and returns a random 256-bit device key once; the browser keeps it in `localStorage`
+  and the server stores only its bcrypt hash. Presenting the key again restores the same profile, so an
+  expired cookie or a rotated signing secret never strands someone's history. A wrong key never
+  restores anything; it just starts a new, empty profile. `GET /auth/session` renews an active session.
 - bcrypt (12 rounds) with a dummy-hash comparison for unknown emails to avoid user enumeration by timing.
 - JWT in an httpOnly, SameSite=Lax cookie (Secure in production); 7-day expiry.
 - Zod validation on every body; Helmet headers with a strict CSP; JSON body limit of 200 kB.
-- Rate limits: 30 auth attempts / 15 min per IP; 60 AI-backed calls / 10 min per user.
+- Rate limits: 30 session starts or auth attempts / 15 min per IP; 60 AI-backed calls / 10 min per user.
 - Ownership enforced in every query (`{ _id, user }`); other users' resources return 404.
 - The shared demo account cannot change its password or be deleted.
 
@@ -242,7 +248,7 @@ anywhere, for example on a phone, without a server.
   so the server services and the browser build call exactly the same code. The offline engine
   (`server/src/ai/local`) is reused the same way.
 - **Storage.** One JSON document in `localStorage` (`poise:standalone:v1`), with an in-memory fallback
-  when storage is unavailable. Passwords are stored as SHA-256 hashes; nothing leaves the device.
+  when storage is unavailable. There's one profile per device and no password; nothing leaves the device.
 - **Routing.** A memory router replaces the browser router, so the file works from any URL or folder.
 - **Capabilities.** Spoken answers, camera self-view and printing are switched off, because sandboxed
   previews generally can't use the microphone, camera or print dialog. Answers are typed, and

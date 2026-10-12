@@ -1,7 +1,6 @@
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 import { Logo } from "@/components/brand/Logo";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -53,20 +52,9 @@ export function Navbar() {
           ))}
         </ul>
         <div className="hidden items-center gap-5 md:flex">
-          {user ? (
-            <ButtonLink to="/app" variant="outline" size="sm" caps arrow>
-              Open dashboard
-            </ButtonLink>
-          ) : (
-            <>
-              <Link to="/login" className="text-[13.5px] text-ink-2 transition-colors hover:text-ink">
-                Sign in
-              </Link>
-              <ButtonLink to="/signup" variant="outline" size="sm" caps arrow>
-                Try it for free
-              </ButtonLink>
-            </>
-          )}
+          <ButtonLink to={user ? "/app" : "/app/new"} variant="outline" size="sm" caps arrow>
+            {user ? "Open dashboard" : "Try it for free"}
+          </ButtonLink>
         </div>
         <button
           type="button"
@@ -101,20 +89,9 @@ export function Navbar() {
                 </a>
               ))}
               <div className="mt-3 flex gap-3">
-                {user ? (
-                  <ButtonLink to="/app" variant="solid" block arrow>
-                    Open dashboard
-                  </ButtonLink>
-                ) : (
-                  <>
-                    <ButtonLink to="/login" variant="soft" block>
-                      Sign in
-                    </ButtonLink>
-                    <ButtonLink to="/signup" variant="solid" block>
-                      Get started
-                    </ButtonLink>
-                  </>
-                )}
+                <ButtonLink to={user ? "/app" : "/app/new"} variant="solid" block arrow>
+                  {user ? "Open dashboard" : "Get started"}
+                </ButtonLink>
               </div>
             </div>
           </motion.div>
