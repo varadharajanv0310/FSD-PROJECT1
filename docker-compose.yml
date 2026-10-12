@@ -1,0 +1,36 @@
+# Local infrastructure for Poise.
+#
+#   docker compose up -d mongo     # just the database (for `npm run dev`)
+#   docker compose --profile app up --build   # the whole app on http://localhost:4000
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongo:27017/poise
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+      CLIENT_ORIGIN: http://localhost:4000
+    profiles: ["app"]
+
+volumes:
+  mongo-data:
