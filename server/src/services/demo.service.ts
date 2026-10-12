@@ -38,15 +38,25 @@ export async function resetDemoUser(): Promise<string> {
   return ensureDemoUser();
 }
 
+// Profiles currently receiving sample history. Building it takes a moment, so
+// without this two simultaneous requests could both pass the "empty" check.
+// (Poise runs as a single server process.)
+const addingSample = new Set<string>();
+
 /**
  * Fills an empty profile with the demo's week of practice history, so the
  * dashboard, trends and reports can be explored straight away.
  */
 export async function addSampleHistory(userId: string): Promise<{ added: number }> {
-  if (await InterviewSessionModel.exists({ user: userId })) {
-    throw conflict("Sample history can only be added before your first interview.");
+  const alreadyHasHistory = () => conflict("Sample history can only be added before your first interview.");
+  if (addingSample.has(userId)) throw alreadyHasHistory();
+  addingSample.add(userId);
+  try {
+    if (await InterviewSessionModel.exists({ user: userId })) throw alreadyHasHistory();
+    const sessions = await buildDemoSessions(localEngine);
+    await InterviewSessionModel.insertMany(sessions.map((session) => ({ ...session, user: userId })));
+    return { added: sessions.length };
+  } finally {
+    addingSample.delete(userId);
   }
-  const sessions = await buildDemoSessions(localEngine);
-  await InterviewSessionModel.insertMany(sessions.map((session) => ({ ...session, user: userId })));
-  return { added: sessions.length };
 }

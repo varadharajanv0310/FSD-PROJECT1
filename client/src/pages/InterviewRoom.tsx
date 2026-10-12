@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import {
   INTERVIEW_TYPE_INFO,
   LEVEL_INFO,
+  LIMITS,
   analyzeAnswer,
   getRole,
   type AnswerMode,
@@ -38,27 +39,10 @@ import { appendDictation, useSpeechRecognition } from "@/hooks/useSpeechRecognit
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { draftKey, readDraft, writeDraft } from "@/lib/drafts";
 import { firstName, formatMinutes, pluralize } from "@/lib/format";
 import { useDeleteSession, useSession, useSetSession, useUpdateProfile } from "@/lib/queries";
 import { useAuth } from "@/providers/AuthProvider";
-
-const draftKey = (sessionId: string, questionId: string) => `poise:draft:${sessionId}:${questionId}`;
-
-function readDraft(key: string): string {
-  try {
-    return localStorage.getItem(key) ?? "";
-  } catch {
-    return "";
-  }
-}
-function writeDraft(key: string, value: string) {
-  try {
-    if (value) localStorage.setItem(key, value);
-    else localStorage.removeItem(key);
-  } catch {
-    /* storage unavailable — drafts are a convenience only */
-  }
-}
 
 /* ───────────────────────────── Lobby ───────────────────────────── */
 
@@ -186,7 +170,7 @@ function Lobby({ session, onBegin }: { session: InterviewSession; onBegin: (opts
 
 function WrapUp({ session, onFinish, finishing }: { session: InterviewSession; onFinish: () => void; finishing: boolean }) {
   const answered = session.questions.filter((q) => q.answer && !q.answer.skipped).length;
-  const followUps = session.questions.filter((q) => q.kind === "follow-up").length;
+  const followUps = session.questions.filter((q) => q.kind === "follow-up" && q.answer && !q.answer.skipped).length;
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -313,8 +297,8 @@ export default function InterviewRoom() {
         title={hasAnswers ? "End the interview now?" : "Leave this interview?"}
         description={
           hasAnswers
-            ? "You'll get feedback on the questions you've answered so far. Unanswered questions won't count against you."
-            : "You haven't answered anything yet, so there's nothing to give feedback on."
+            ? "Finish now for feedback on what you've answered so far (unanswered questions won't count against you), or save it and pick up where you left off later."
+            : "You haven't answered anything yet. Save it for later, or discard it."
         }
       >
         <div className="flex flex-col gap-2.5">
@@ -327,6 +311,9 @@ export default function InterviewRoom() {
               Discard interview
             </Button>
           )}
+          <Button variant="glass" block onClick={() => navigate("/app")}>
+            Save & exit
+          </Button>
           <Button variant="glass" block onClick={() => setConfirmEnd(false)}>
             Keep going
           </Button>
@@ -365,10 +352,11 @@ function QuestionStage({
   const level = useAudioLevel(mic.stream, speech.listening);
   const elapsed = useElapsed(!submitting, question.id);
 
-  // Reset per question.
+  // Reset per question, starting at the top so the question, timer and End are in view.
   useEffect(() => {
     setAnswer(readDraft(draftKey(session.id, question.id)));
     setShowHint(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [session.id, question.id]);
 
   useEffect(() => writeDraft(key, answer), [key, answer]);
@@ -398,6 +386,14 @@ function QuestionStage({
     await mic.request();
     speech.start((phrase) => setAnswer((current) => appendDictation(current, phrase)));
   };
+
+  // Only promise "final" when no follow-up can come after this answer.
+  const followUpPossible =
+    session.config.adaptiveFollowUps &&
+    question.kind === "core" &&
+    session.questions.filter((q) => q.kind === "follow-up").length <
+      Math.floor(session.config.questionCount * LIMITS.maxFollowUpsRatio);
+  const isFinalAnswer = session.currentIndex === session.questions.length - 1 && !followUpPossible;
 
   const fullText = speech.interim ? appendDictation(answer, speech.interim) : answer;
   const metrics = useMemo(
@@ -638,7 +634,7 @@ function QuestionStage({
               <Kbd>Ctrl</Kbd> <Kbd>↵</Kbd>
             </span>
             <Button variant="light" size="md" arrow onClick={() => void submit(false)} disabled={!answer.trim() || Boolean(submitting)} loading={submitting === "answer"}>
-              {session.currentIndex === session.questions.length - 1 ? "Submit final answer" : "Submit answer"}
+              {isFinalAnswer ? "Submit final answer" : "Submit answer"}
             </Button>
           </div>
         </div>

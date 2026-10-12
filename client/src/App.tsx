@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import {
   createBrowserRouter,
   createMemoryRouter,
@@ -13,6 +13,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/primitives";
+import { readDevice } from "@/lib/device";
 import { isStandalone } from "@/lib/env";
 import Landing from "@/pages/Landing";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
@@ -41,7 +42,11 @@ function FullPageSpinner() {
  */
 function RequireSession({ children }: { children: ReactNode }) {
   const { user, loading, error, ensureSession } = useAuth();
-  const ready = Boolean(user && !user.isDemo);
+  // A guest session that isn't this browser's own profile (e.g. set by another
+  // site) is swapped back for the profile its device key belongs to.
+  const device = readDevice();
+  const foreignGuest = Boolean(user?.isGuest && device && device.id !== user.id);
+  const ready = Boolean(user && !user.isDemo && !foreignGuest);
 
   useEffect(() => {
     if (!loading && !ready) ensureSession();
@@ -63,14 +68,33 @@ function RequireSession({ children }: { children: ReactNode }) {
   return <FullPageSpinner />;
 }
 
+/** True below the `md` breakpoint, where the app has a bottom tab bar. */
+function useIsPhone() {
+  const query = "(max-width: 767px)";
+  const [phone, setPhone] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setPhone(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return phone;
+}
+
 function Root() {
+  const phone = useIsPhone();
   return (
     <AuthProvider>
       <ScrollRestoration />
       <Suspense fallback={<FullPageSpinner />}>
         <Outlet />
       </Suspense>
-      <Toaster position="bottom-center" toastOptions={{ className: "!rounded-2xl !font-sans" }} />
+      {/* On phones, toasts sit at the top so they never cover the tab bar or bottom buttons. */}
+      <Toaster
+        position={phone ? "top-center" : "bottom-center"}
+        mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+        toastOptions={{ className: "!rounded-2xl !font-sans" }}
+      />
     </AuthProvider>
   );
 }

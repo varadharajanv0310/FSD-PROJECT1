@@ -11,7 +11,7 @@ import { logger } from "../utils/logger";
 async function main() {
   await connectDatabase();
   await resetDemoUser();
-  logger.info(`Demo account ready: ${DEMO_EMAIL} — use “Explore the demo” on the sign-in page.`);
+  logger.info(`Demo account ready: ${DEMO_EMAIL} (API only: POST /api/auth/demo). In the app, use “Explore with sample data”.`);
   await disconnectDatabase();
 }
 

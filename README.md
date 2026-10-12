@@ -230,7 +230,8 @@ All settings live in `.env` (see [`.env.example`](.env.example)).
 | `ANTHROPIC_MODEL` | `claude-opus-5-5` | Claude model ID |
 | `PORT` | `4000` | API port |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Allowed CORS origin(s) |
-| `DEMO_ACCOUNT` | `true` | Enables the one-click demo account |
+| `DEMO_ACCOUNT` | `true` | Enables the shared demo account endpoint (`POST /auth/demo`, API only) |
+| `TRUST_PROXY` | `0` | Reverse proxies in front of the server (set `1` on Render/Railway) — only then is `X-Forwarded-For` trusted for rate limits |
 
 ## Standalone preview (no server)
 
@@ -274,7 +275,7 @@ poise/
 │   └── test/                # Engine unit tests + API integration tests
 ├── client/
 │   └── src/
-│       ├── pages/           # Landing, Auth, Dashboard, NewInterview, InterviewRoom, Report, History, PracticeLab, Settings
+│       ├── pages/           # Landing, Dashboard, NewInterview, InterviewRoom, Report, History, PracticeLab, Settings
 │       ├── components/      # landing/, app/, interview/, report/, ui/, brand/ (Orb, Glow, Logo…)
 │       ├── hooks/           # Speech recognition & synthesis, media streams, audio level
 │       ├── lib/             # API client, queries, formatting
@@ -344,8 +345,8 @@ JWT_SECRET=$(openssl rand -hex 32) docker compose --profile app up --build
 ```
 
 **Render / Railway / any Node host:** build with `npm ci && npm run build`, start with `npm start`, and
-set `NODE_ENV=production`, `MONGODB_URI` (e.g. Atlas), `JWT_SECRET`, optionally `ANTHROPIC_API_KEY`, and
-`CLIENT_ORIGIN` to your public URL. The server serves the built client, so a single service is enough.
+set `NODE_ENV=production`, `MONGODB_URI` (e.g. Atlas), `JWT_SECRET`, `TRUST_PROXY=1`, optionally
+`ANTHROPIC_API_KEY`, and `CLIENT_ORIGIN` to your public URL. The server serves the built client, so a single service is enough.
 Serve over HTTPS — session cookies are `Secure` in production, and browsers only allow microphone access
 on secure origins.
 

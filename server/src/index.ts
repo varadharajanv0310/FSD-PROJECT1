@@ -12,7 +12,7 @@ async function main() {
     const engine = engineStatus();
     logger.info(`Poise API listening on http://localhost:${env.PORT}`);
     logger.info(`AI engine: ${engine.label}${engine.provider === "local" ? " (set ANTHROPIC_API_KEY to enable Claude)" : ""}`);
-    if (env.jwtSecretIsEphemeral) logger.warn("JWT_SECRET is not set — using a temporary secret; sign-ins reset on restart.");
+    if (env.jwtSecretIsEphemeral) logger.warn("JWT_SECRET is not set — using a temporary secret; sessions are restored from each browser's device key after a restart.");
   });
 
   await resumeUnfinishedWork();

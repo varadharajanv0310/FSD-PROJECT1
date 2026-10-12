@@ -40,18 +40,27 @@ function emptyState(): State {
   return { version: 1, users: [], currentUserId: null, sessions: [], saved: [] };
 }
 
-function load(): State {
+/** The saved document, or null when there is none or storage can't be read. */
+function readStored(): State | null {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return emptyState();
+    if (!raw) return null;
     const parsed = JSON.parse(raw) as State;
-    return parsed?.version === 1 ? parsed : emptyState();
+    return parsed?.version === 1 ? parsed : null;
   } catch {
-    return emptyState();
+    return null;
   }
 }
 
-let state: State = load();
+let state: State = readStored() ?? emptyState();
+
+// Another tab of the app saved: adopt its copy, so this tab never writes stale
+// data over it (or starts a second profile next to the first).
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === KEY || event.key === null) state = readStored() ?? emptyState();
+  });
+}
 
 export const store = {
   get state(): Readonly<State> {
@@ -65,6 +74,10 @@ export const store = {
     } catch {
       /* storage full or unavailable — keep the in-memory copy */
     }
+  },
+  /** Re-reads storage in case another tab changed it; keeps the in-memory copy if storage is unavailable. */
+  refresh(): void {
+    state = readStored() ?? state;
   },
   /** Wipes everything this preview has stored on the device. */
   reset(): void {

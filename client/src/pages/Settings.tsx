@@ -43,12 +43,13 @@ export default function Settings() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  // Re-sync the form only when the saved profile fields change, so saving a
+  // preference doesn't wipe unsaved edits to the name, role or level.
   useEffect(() => {
-    if (!user) return;
-    setName(user.name);
-    setTargetRole(user.targetRole ?? "");
-    setLevel(user.level ?? "");
-  }, [user]);
+    setName(user?.name ?? "");
+    setTargetRole(user?.targetRole ?? "");
+    setLevel(user?.level ?? "");
+  }, [user?.id, user?.name, user?.targetRole, user?.level]);
 
   if (!user) return null;
 
@@ -214,8 +215,9 @@ export default function Settings() {
           <div className="flex items-start gap-4 rounded-2xl bg-cloud p-5">
             <HardDrive className="mt-0.5 size-5 shrink-0 text-muted" />
             <p className="text-[14.5px] leading-relaxed text-ink-2">
-              Your interviews and saved questions stay with this browser. Clearing its site data, or opening Poise in a
-              different browser, starts a new, empty profile.
+              {isStandalone
+                ? "Your interviews and saved questions stay on this device, in this browser. Clearing its site data starts a new, empty profile."
+                : "Your interviews and saved questions stay with this browser. Clearing its site data, or opening Poise in a different browser, starts a new, empty profile."}
             </p>
           </div>
           <div className="flex items-start gap-4 rounded-2xl border border-[#f3c4c4] bg-[#fdf3f3] p-5">
@@ -225,7 +227,15 @@ export default function Settings() {
                 Erase every interview, saved question and setting, and start again with a fresh profile. This can't be
                 undone.
               </p>
-              <Button variant="danger" size="sm" className="mt-4" onClick={() => setDeleteOpen(true)}>
+              <Button
+                variant="danger"
+                size="sm"
+                className="mt-4"
+                onClick={() => {
+                  setDeleteConfirm("");
+                  setDeleteOpen(true);
+                }}
+              >
                 Erase my data
               </Button>
             </div>

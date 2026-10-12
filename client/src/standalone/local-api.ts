@@ -30,6 +30,7 @@ import { newId, store, type LocalSession, type LocalUser } from "./store";
  */
 
 const engine = new LocalEngine();
+let addingSample = false;
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   autoReadQuestions: true,
@@ -115,6 +116,7 @@ export const localApi: typeof httpApi = {
   },
 
   async startSession() {
+    store.refresh();
     const existing = store.state.users.find((u) => u.id === store.state.currentUserId);
     if (existing) return { user: toUser(existing) };
     const user: LocalUser = {
@@ -142,13 +144,9 @@ export const localApi: typeof httpApi = {
   },
 
   async deleteAccount() {
-    const user = currentUser();
-    store.update((draft) => {
-      draft.users = draft.users.filter((u) => u.id !== user.id);
-      draft.sessions = draft.sessions.filter((s) => s.userId !== user.id);
-      draft.saved = draft.saved.filter((q) => q.userId !== user.id);
-      draft.currentUserId = null;
-    });
+    currentUser();
+    // One profile per device: erasing it clears everything this preview stored.
+    store.reset();
   },
 
   // ── Meta ───────────────────────────────────────────────────────────────
@@ -274,14 +272,20 @@ export const localApi: typeof httpApi = {
 
   async loadSampleHistory() {
     const user = currentUser();
-    if (store.state.sessions.some((s) => s.userId === user.id)) {
+    if (addingSample || store.state.sessions.some((s) => s.userId === user.id)) {
       throw conflict("Sample history can only be added before your first interview.");
     }
-    const sessions = await buildDemoSessions(engine);
-    store.update((draft) => {
-      for (const session of sessions) draft.sessions.push({ ...clone(session), _id: newId(), userId: user.id });
-    });
-    return { added: sessions.length };
+    // Building takes a moment; don't let a second request slip past the check meanwhile.
+    addingSample = true;
+    try {
+      const sessions = await buildDemoSessions(engine);
+      store.update((draft) => {
+        for (const session of sessions) draft.sessions.push({ ...clone(session), _id: newId(), userId: user.id });
+      });
+      return { added: sessions.length };
+    } finally {
+      addingSample = false;
+    }
   },
 
   async deleteSession(id) {

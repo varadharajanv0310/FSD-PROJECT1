@@ -1,7 +1,7 @@
 import { ChevronDown, Cpu, History, LayoutGrid, Plus, Settings, Sparkles, UserRound, WifiOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, NavLink, useLocation, useOutlet } from "react-router";
 import { PageGlow } from "@/components/brand/Glow";
 import { Logo } from "@/components/brand/Logo";
 import { ButtonLink } from "@/components/ui/Button";
@@ -114,6 +114,17 @@ function UserMenu() {
   );
 }
 
+/**
+ * The route's page as it was when this transition frame mounted. Without
+ * freezing it, the page fading out would already render the next route, so
+ * every page mounted twice and lost anything done in its first moments.
+ */
+function FrozenOutlet() {
+  const outlet = useOutlet();
+  const [frozen] = useState(outlet);
+  return frozen;
+}
+
 export function AppShell() {
   const location = useLocation();
 
@@ -152,7 +163,8 @@ export function AppShell() {
         </div>
       </header>
 
-      <AnimatePresence mode="wait">
+      {/* Each page starts at the top once the previous one has faded out. */}
+      <AnimatePresence mode="wait" onExitComplete={() => window.scrollTo({ top: 0, behavior: "instant" })}>
         <motion.main
           key={location.pathname}
           initial={{ opacity: 0, y: 10 }}
@@ -161,7 +173,7 @@ export function AppShell() {
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto max-w-[1200px] px-5 py-8 sm:px-8 sm:py-10"
         >
-          <Outlet />
+          <FrozenOutlet />
         </motion.main>
       </AnimatePresence>
 

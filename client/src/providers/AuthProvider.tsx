@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { User } from "@poise/shared";
-import { api, ApiError } from "@/lib/api";
+import { api, onSessionRestored } from "@/lib/api";
+import { clearDrafts } from "@/lib/drafts";
 import { keys, useMe } from "@/lib/queries";
 
 /**
@@ -29,10 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
   const starting = useRef(false);
 
-  // Drop everything cached for the previous profile, but keep the "me" query
-  // itself so components subscribed to it see the change immediately.
+  // Drop everything cached for the previous profile. Resetting (rather than
+  // removing) keeps mounted pages subscribed, so they refetch for the new one.
   const resetOtherQueries = useCallback(
-    () => client.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] }),
+    () => void client.resetQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] }),
     [client],
   );
 
@@ -52,24 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, [client, resetOtherQueries]);
 
-  // A request rejected as unauthorised means the session lapsed (an expired
-  // cookie, or a server restarted with a new secret). Forgetting it makes the
-  // app restore this browser's profile instead of failing every request.
-  useEffect(() => {
-    const onError = (cause: unknown) => {
-      if (cause instanceof ApiError && cause.status === 401) client.setQueryData(keys.me, null);
-    };
-    const stopQueries = client.getQueryCache().subscribe((event) => {
-      if (event.type === "updated" && event.action.type === "error") onError(event.action.error);
-    });
-    const stopMutations = client.getMutationCache().subscribe((event) => {
-      if (event.type === "updated" && event.action.type === "error") onError(event.action.error);
-    });
-    return () => {
-      stopQueries();
-      stopMutations();
-    };
-  }, [client]);
+  // The API client restores a lapsed session by itself and retries the request.
+  // If that brought back a different profile (this browser's key was lost),
+  // nothing cached for the old one may be shown.
+  useEffect(
+    () =>
+      onSessionRestored((next) => {
+        if (client.getQueryData<User | null>(keys.me)?.id !== next.id) resetOtherQueries();
+        client.setQueryData(keys.me, next);
+      }),
+    [client, resetOtherQueries],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -79,13 +73,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ensureSession,
       eraseProfile: async () => {
         await api.deleteAccount();
+        clearDrafts();
+        // Start the fresh profile before anything refetches, so only one is created.
+        // If that fails, the session guard retries and explains.
+        const next = await api.startSession().then(
+          (result) => result.user,
+          () => null,
+        );
         resetOtherQueries();
-        try {
-          client.setQueryData(keys.me, (await api.startSession()).user);
-        } catch {
-          // The session guard retries, and explains if it still can't connect.
-          client.setQueryData(keys.me, null);
-        }
+        client.setQueryData(keys.me, next);
       },
     }),
     [client, ensureSession, error, isLoading, resetOtherQueries, user],

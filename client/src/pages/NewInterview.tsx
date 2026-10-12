@@ -332,7 +332,9 @@ export default function NewInterview() {
                 <Keyboard className="size-5" />
                 <span className="mt-3 block text-[15px] font-semibold">Type</span>
                 <span className="mt-1 block text-[13.5px] leading-snug text-muted">
-                  Write your answers. Great for quiet places — you can switch to voice any time.
+                  {voiceSupported
+                    ? "Write your answers. Great for quiet places — you can switch to voice any time."
+                    : "Write your answers. Feedback works exactly the same as for spoken answers."}
                 </span>
               </OptionCard>
             </div>

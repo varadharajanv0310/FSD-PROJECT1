@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { env } from "../config/env";
 import { clearAuthCookie, currentUserId, optionalUserId, requireAuth, setAuthCookie, signToken } from "../middleware/auth";
-import { authLimiter } from "../middleware/rateLimit";
-import { validateBody } from "../middleware/validate";
+import { authLimiter, sessionLimiter } from "../middleware/rateLimit";
+import { requireJson, validateBody } from "../middleware/validate";
 import {
   authenticate,
   changePassword,
@@ -40,8 +40,11 @@ authRouter.post("/demo", authLimiter, async (_req, res) => {
 /**
  * Starts a session without sign-up: restores this browser's profile from its
  * device key, or creates a new profile and returns its key (once).
+ *
+ * JSON only: a form on another site can post here without a CORS preflight,
+ * and the response would swap the visitor onto a new, empty profile.
  */
-authRouter.post("/guest", authLimiter, validateBody(GuestSchema), async (req, res) => {
+authRouter.post("/guest", sessionLimiter, requireJson, validateBody(GuestSchema), async (req, res) => {
   const { user, deviceKey } = await startGuestSession(req.body.device);
   setAuthCookie(res, signToken(user.id));
   res.status(deviceKey ? 201 : 200).json(deviceKey ? { user, deviceKey } : { user });

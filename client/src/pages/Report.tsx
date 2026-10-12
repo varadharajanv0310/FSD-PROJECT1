@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, Calendar, Check, Clock, Cpu, Download, MessageSquare, RotateCcw, WifiOff } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
@@ -82,16 +82,19 @@ export default function Report() {
   const { data: session, isLoading, error } = useSession(id);
   const createSession = useCreateSession();
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const openedDefault = useRef(false);
   useDocumentTitle(session ? `Debrief · ${session.title}` : "Debrief");
 
   useEffect(() => {
-    // Open the weakest answered question by default — that's where the learning is.
-    if (!session?.report || openIds.size) return;
+    // Open the weakest answered question once, by default — that's where the
+    // learning is. After that, opening and closing is entirely up to the reader.
+    if (!session?.report || openedDefault.current) return;
+    openedDefault.current = true;
     const weakest = [...session.questions]
       .filter((q) => q.evaluation?.status === "done" && !q.answer?.skipped)
       .sort((a, b) => (a.evaluation!.overall ?? 0) - (b.evaluation!.overall ?? 0))[0];
     if (weakest) setOpenIds(new Set([weakest.id]));
-  }, [session?.report, session?.questions, openIds.size]);
+  }, [session?.report, session?.questions]);
 
   const habits = useMemo(() => {
     const answers = session?.questions.filter((q) => q.answer && !q.answer.skipped && q.metrics) ?? [];

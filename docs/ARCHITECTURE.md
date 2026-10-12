@@ -213,7 +213,10 @@ schema-validated object; the server clamps scores and computes the overall itsel
 - bcrypt (12 rounds) with a dummy-hash comparison for unknown emails to avoid user enumeration by timing.
 - JWT in an httpOnly, SameSite=Lax cookie (Secure in production); 7-day expiry.
 - Zod validation on every body; Helmet headers with a strict CSP; JSON body limit of 200 kB.
-- Rate limits: 30 session starts or auth attempts / 15 min per IP; 60 AI-backed calls / 10 min per user.
+- `POST /auth/guest` accepts JSON only (415 otherwise), so a form on another site can't swap a visitor onto
+  a new profile; the client also restores its own profile if a session ever belongs to a different one.
+- Rate limits: 300 session starts / 15 min and 30 password attempts / 15 min per IP; 60 AI-backed calls /
+  10 min per user. `X-Forwarded-For` is trusted only when `TRUST_PROXY` says a proxy is in front.
 - Ownership enforced in every query (`{ _id, user }`); other users' resources return 404.
 - The shared demo account cannot change its password or be deleted.
 

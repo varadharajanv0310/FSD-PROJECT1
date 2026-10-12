@@ -24,6 +24,9 @@ const EnvSchema = z.object({
   ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
   DEMO_ACCOUNT: booleanish.default(true),
   SERVE_CLIENT: booleanish.optional(),
+  // Reverse proxies in front of the server (e.g. 1 on Render or Railway). Only
+  // then are X-Forwarded-For addresses trusted for rate limiting.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

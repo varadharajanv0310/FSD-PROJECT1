@@ -18,7 +18,7 @@ import type {
 import { ApiError } from "./api-error";
 import { readDevice, writeDevice, type DeviceCredentials } from "./device";
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
@@ -39,24 +39,77 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
+/** Restores this browser's profile, or creates one the first time. */
+async function startSession(): Promise<{ user: User }> {
+  const start = (device: DeviceCredentials | undefined) =>
+    send<{ user: User; deviceKey?: string }>("POST", "/auth/guest", { device });
+  const result = await start(readDevice()).catch((error: unknown) => {
+    // A malformed stored key can never succeed — forget it and start a new profile.
+    if (error instanceof ApiError && error.status === 400) {
+      writeDevice(null);
+      return start(undefined);
+    }
+    throw error;
+  });
+  if (result.deviceKey) writeDevice({ id: result.user.id, key: result.deviceKey });
+  return { user: result.user };
+}
+
+const restoredListeners = new Set<(user: User) => void>();
+
+/** Called with the profile whenever a lapsed session is restored behind the scenes. */
+export function onSessionRestored(listener: (user: User) => void): () => void {
+  restoredListeners.add(listener);
+  return () => restoredListeners.delete(listener);
+}
+
+let restoring: Promise<User> | null = null;
+// Set when even a freshly restored session is rejected: the browser isn't keeping our cookie.
+let cookiesBlocked = false;
+
+const cookiesBlockedError = () =>
+  new ApiError(401, "cookies_blocked", "Poise needs cookies to keep your practice. Allow cookies for this site, then refresh the page.");
+
+function restoreSession(): Promise<User> {
+  restoring ??= startSession()
+    .then(({ user }) => {
+      restoredListeners.forEach((listener) => listener(user));
+      return user;
+    })
+    .finally(() => {
+      restoring = null;
+    });
+  return restoring;
+}
+
+/**
+ * Sends a request. If the session has lapsed (an expired cookie, or a server
+ * restarted with a new secret), restores this browser's profile and retries
+ * once, so the user's action still goes through.
+ */
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  try {
+    return await send<T>(method, path, body);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    if (cookiesBlocked) throw cookiesBlockedError();
+    await restoreSession();
+    try {
+      return await send<T>(method, path, body);
+    } catch (retryError) {
+      if (retryError instanceof ApiError && retryError.status === 401) {
+        cookiesBlocked = true;
+        throw cookiesBlockedError();
+      }
+      throw retryError;
+    }
+  }
+}
+
 export const httpApi = {
   // Profile (no sign-up: each browser has its own profile)
-  currentUser: () => request<{ user: User | null }>("GET", "/auth/session"),
-  /** Restores this browser's profile, or creates one the first time. */
-  startSession: async (): Promise<{ user: User }> => {
-    const start = (device: DeviceCredentials | undefined) =>
-      request<{ user: User; deviceKey?: string }>("POST", "/auth/guest", { device });
-    const result = await start(readDevice()).catch((error: unknown) => {
-      // A malformed stored key can never succeed — forget it and start a new profile.
-      if (error instanceof ApiError && error.status === 400) {
-        writeDevice(null);
-        return start(undefined);
-      }
-      throw error;
-    });
-    if (result.deviceKey) writeDevice({ id: result.user.id, key: result.deviceKey });
-    return { user: result.user };
-  },
+  currentUser: () => send<{ user: User | null }>("GET", "/auth/session"),
+  startSession,
   updateProfile: (update: {
     name?: string;
     targetRole?: User["targetRole"] | null;

@@ -245,6 +245,14 @@ describe.skipIf(!available)("API", () => {
       expect((await agent().post("/api/auth/guest").send({ device: { id: "nope", key: "x" } })).status).toBe(400);
     });
 
+    it("refuses non-JSON requests, so another site's form can't swap the profile", async () => {
+      const form = await agent().post("/api/auth/guest").type("form").send("device=x");
+      expect(form.status).toBe(415);
+      expect(form.headers["set-cookie"]).toBeUndefined();
+      const text = await agent().post("/api/auth/guest").set("Content-Type", "text/plain").send("{}");
+      expect(text.status).toBe(415);
+    });
+
     it("renews an active session and allows an empty name", async () => {
       const { client } = await startProfile();
       const session = await client.get("/api/auth/session");
@@ -265,6 +273,14 @@ describe.skipIf(!available)("API", () => {
       expect(stats.body.stats.totals.completed).toBeGreaterThanOrEqual(5);
       expect((await client.post("/api/interviews/sample")).status).toBe(409);
       expect((await agent().post("/api/interviews/sample")).status).toBe(401);
+    });
+
+    it("adds sample history only once when requested twice at the same time", async () => {
+      const { client } = await startProfile();
+      const responses = await Promise.all([client.post("/api/interviews/sample"), client.post("/api/interviews/sample")]);
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+      const added = responses.find((response) => response.status === 201)!.body.added;
+      expect((await client.get("/api/interviews")).body.sessions).toHaveLength(added);
     });
 
     it("erases a profile so its device key no longer works", async () => {

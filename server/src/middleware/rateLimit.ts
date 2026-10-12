@@ -17,6 +17,19 @@ export const authLimiter = rateLimit({
   message,
 });
 
+/**
+ * Starting or restoring a browser profile happens on every first visit and
+ * whenever a session lapses, so it gets a far larger budget than password
+ * attempts — enough for many people behind one campus or office IP.
+ */
+export const sessionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: env.isTest ? 1000 : 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message,
+});
+
 /** Caps calls that hit the AI engine, per signed-in user. */
 export const aiLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,

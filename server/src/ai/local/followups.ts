@@ -97,9 +97,22 @@ const TEMPLATES = {
   },
 } satisfies Record<string, FollowUpTemplate>;
 
+const PROPER_NOUNS = new Set([
+  "React", "Angular", "Vue", "Node", "Kubernetes", "Docker", "Terraform", "Linux", "Python", "Java", "Kotlin",
+  "Swift", "Android", "Flutter", "Redis", "Kafka", "Spark", "Git", "Excel", "Tableau", "Figma", "Go", "Rust",
+]);
+
+/** Lower-cases a category for use mid-sentence, keeping names and acronyms ("React", "SQL", "JavaScript"). */
+export function categoryInSentence(category: string): string {
+  return category
+    .split(" ")
+    .map((word) => (/^[A-Z][a-z]+(?:[-'][a-z]+)*$/.test(word) && !PROPER_NOUNS.has(word) ? word.toLowerCase() : word))
+    .join(" ");
+}
+
 function build(template: FollowUpTemplate, question: QuestionContext): DraftQuestion {
   return {
-    text: template.text(question.category.toLowerCase()),
+    text: template.text(categoryInSentence(question.category)),
     category: question.category,
     difficulty: template.difficulty,
     hint: template.hint,

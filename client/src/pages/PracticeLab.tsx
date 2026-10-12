@@ -287,6 +287,9 @@ export default function PracticeLab() {
   }, [type, roleInfo.systemDesign]);
 
   const context: PracticeContext = { role, type, level, difficulty };
+  // The settings the current questions were generated with. Changing the form
+  // afterwards must not relabel them, or save/score them as another role.
+  const [generatedFor, setGeneratedFor] = useState<PracticeContext>(context);
   const savedByText = useMemo(() => new Map((saved.data ?? []).map((q) => [q.text, q.id])), [saved.data]);
 
   const generate = async () => {
@@ -301,6 +304,7 @@ export default function PracticeLab() {
         jobDescription: jobDescription.trim() || undefined,
       });
       setQuestions(result.questions);
+      setGeneratedFor(context);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't generate questions.");
     } finally {
@@ -442,9 +446,9 @@ export default function PracticeLab() {
                 <QuestionCard
                   key={question.text}
                   question={question}
-                  context={context}
+                  context={generatedFor}
                   saved={savedByText.has(question.text)}
-                  onToggleSave={() => void toggleSave(question, { role, type })}
+                  onToggleSave={() => void toggleSave(question, generatedFor)}
                   defaultOpen={Boolean(incoming) && index === 0}
                 />
               ))

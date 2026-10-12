@@ -77,7 +77,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    scroll-behavior: smooth;
+    /* No global smooth scrolling: route changes must jump to the top instantly,
+       and in-page links ask for smooth scrolling explicitly. */
   }
   body {
     @apply bg-paper font-sans text-ink;

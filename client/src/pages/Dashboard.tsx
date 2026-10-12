@@ -1,4 +1,5 @@
 import { ArrowRight, ArrowUpRight, CheckCircle2, CircleAlert, Clock, Flame, MessageSquareText, Play, Target, TrendingUp } from "lucide-react";
+import { useRef } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import {
@@ -122,11 +123,19 @@ function HabitRow({ label, value, unit, target, good }: { label: string; value: 
 
 function Welcome({ name }: { name: string }) {
   const loadSample = useLoadSampleHistory();
-  const showSample = () =>
+  // A ref, not isPending: both clicks of a double click run before the next render.
+  const requested = useRef(false);
+  const showSample = () => {
+    if (requested.current) return;
+    requested.current = true;
     loadSample.mutate(undefined, {
       onSuccess: ({ added }) => toast.success(`Added ${pluralize(added, "sample interview")}. Explore away!`),
-      onError: (error) => toast.error(error instanceof ApiError ? error.message : "Couldn't load the sample history."),
+      onError: (error) => {
+        requested.current = false;
+        toast.error(error instanceof ApiError ? error.message : "Couldn't load the sample history.");
+      },
     });
+  };
   const presets = [
     { role: "software-engineer", type: "mixed", title: "Campus SDE round", detail: "CS fundamentals + HR · 6 questions" },
     { role: "frontend", type: "technical", title: "Frontend deep-dive", detail: "JavaScript, React, performance" },

@@ -9,6 +9,7 @@ import { Reveal } from "@/components/brand/Reveal";
 import { Waveform } from "@/components/brand/Waveform";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { isStandalone } from "@/lib/env";
 import { RoleIcon, ROLE_GRADIENTS } from "@/lib/roles";
 import { useAuth } from "@/providers/AuthProvider";
 import { Container } from "./Sections";
@@ -434,7 +435,9 @@ const FAQS = [
   },
   {
     q: "Which browsers support spoken answers?",
-    a: "Voice answers use the Web Speech API, available in Chrome, Edge and Safari. In other browsers you can type your answers — feedback works exactly the same.",
+    a: isStandalone
+      ? "In the full app, voice answers use the Web Speech API in Chrome, Edge and Safari. This in-browser preview can't use the microphone, so answers are typed — feedback works exactly the same."
+      : "Voice answers use the Web Speech API, available in Chrome, Edge and Safari. In other browsers you can type your answers — feedback works exactly the same.",
   },
   {
     q: "How are answers scored?",

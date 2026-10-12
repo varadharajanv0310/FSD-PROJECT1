@@ -1,14 +1,16 @@
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/providers/AuthProvider";
 
+const sectionFor = (href: string) => document.getElementById(href.slice(1));
+
 /** Smooth-scrolls to a landing section without touching the URL (works in every router mode). */
 function scrollToSection(event: React.MouseEvent<HTMLAnchorElement>, href: string) {
-  const target = document.getElementById(href.slice(1));
+  const target = sectionFor(href);
   if (!target) return;
   event.preventDefault();
   target.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -25,6 +27,10 @@ export function Navbar() {
   const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  // A section picked from the mobile menu. Scrolling waits until the menu has
+  // closed: measuring its collapse resets the scroll position, which would
+  // cancel a scroll that had already started.
+  const pendingSection = useRef<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -66,7 +72,13 @@ export function Navbar() {
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </nav>
-      <AnimatePresence>
+      <AnimatePresence
+        onExitComplete={() => {
+          const href = pendingSection.current;
+          pendingSection.current = null;
+          if (href) sectionFor(href)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      >
         {open && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -80,8 +92,10 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   onClick={(event) => {
+                    if (!sectionFor(link.href)) return;
+                    event.preventDefault();
+                    pendingSection.current = link.href;
                     setOpen(false);
-                    scrollToSection(event, link.href);
                   }}
                   className="rounded-xl px-3 py-3 text-[15px] hover:bg-mist"
                 >

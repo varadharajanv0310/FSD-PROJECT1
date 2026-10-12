@@ -3,6 +3,7 @@ import { analyzeAnswer, weightedOverall, type InterviewConfig } from "@poise/sha
 import { QUESTION_BANK, bankFor } from "../src/ai/local/bank";
 import { LocalEngine } from "../src/ai/local/engine";
 import { asPhrase } from "../src/ai/local/feedback";
+import { categoryInSentence } from "../src/ai/local/followups";
 import { extractSkills } from "../src/ai/local/skills";
 import { selectQuestions } from "../src/ai/local/select";
 
@@ -111,6 +112,15 @@ describe("offline evaluation", () => {
       askedQuestions: [question.text],
     });
     expect(followUp?.text).toMatch(/go a level deeper/);
+  });
+
+  it("keeps names and acronyms when a category is used mid-sentence", () => {
+    expect(categoryInSentence("React")).toBe("React");
+    expect(categoryInSentence("SQL")).toBe("SQL");
+    expect(categoryInSentence("JavaScript")).toBe("JavaScript");
+    expect(categoryInSentence("API design")).toBe("API design");
+    expect(categoryInSentence("System design")).toBe("system design");
+    expect(categoryInSentence("Full-stack")).toBe("full-stack");
   });
 
   it("phrases key points in the second person", () => {
