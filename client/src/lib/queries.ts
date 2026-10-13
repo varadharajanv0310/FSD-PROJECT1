@@ -45,9 +45,14 @@ export function useSession(id: string | undefined) {
   });
 }
 
+/** Stores an updated interview, and marks the lists and stats that summarise it as stale. */
 export function useSetSession() {
   const client = useQueryClient();
-  return (session: InterviewSession) => client.setQueryData(keys.session(session.id), session);
+  return (session: InterviewSession) => {
+    client.setQueryData(keys.session(session.id), session);
+    void client.invalidateQueries({ queryKey: ["sessions"] });
+    void client.invalidateQueries({ queryKey: keys.stats });
+  };
 }
 
 export function useCreateSession() {

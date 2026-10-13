@@ -1,6 +1,6 @@
 import { ArrowRight, Bookmark, BookmarkCheck, Check, ChevronDown, Lightbulb, ListChecks, Mic, MicOff, Sparkles, Wand2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -280,6 +280,16 @@ export default function PracticeLab() {
   const [questions, setQuestions] = useState<GeneratedQuestion[]>(incoming ? [incoming.question] : []);
   const [loading, setLoading] = useState(false);
   const saved = useSavedQuestions();
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Arriving with a question to practise: on phones the list sits below the
+  // generator, so bring the question into view.
+  useEffect(() => {
+    const list = listRef.current;
+    if (incoming && list && list.getBoundingClientRect().top > window.innerHeight * 0.6) {
+      list.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
 
   const roleInfo = getRole(role)!;
   useEffect(() => {
@@ -430,7 +440,7 @@ export default function PracticeLab() {
             </div>
           </Card>
 
-          <div className="min-w-0 space-y-4">
+          <div ref={listRef} className="min-w-0 scroll-mt-24 space-y-4">
             {loading ? (
               [0, 1, 2].map((i) => <Skeleton key={i} className="h-36" />)
             ) : questions.length === 0 ? (

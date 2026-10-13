@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { User } from "@poise/shared";
-import { api, onSessionRestored } from "@/lib/api";
+import { api, onExternalChange, onSessionRestored } from "@/lib/api";
 import { clearDrafts } from "@/lib/drafts";
 import { keys, useMe } from "@/lib/queries";
 
@@ -63,6 +63,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         client.setQueryData(keys.me, next);
       }),
     [client, resetOtherQueries],
+  );
+
+  // Another tab erased or replaced the profile: start over from the current
+  // session, so this tab can't show (or save into) the old one. If it only
+  // changed data, refresh in the background.
+  useEffect(
+    () =>
+      onExternalChange((change) => {
+        if (change === "profile") void client.resetQueries();
+        else void client.invalidateQueries();
+      }),
+    [client],
   );
 
   const value = useMemo<AuthContextValue>(

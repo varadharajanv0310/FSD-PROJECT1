@@ -1,11 +1,12 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   createBrowserRouter,
   createMemoryRouter,
   Navigate,
   Outlet,
   RouterProvider,
-  ScrollRestoration,
+  useLocation,
+  useNavigationType,
   type RouteObject,
 } from "react-router";
 import { Toaster } from "sonner";
@@ -15,17 +16,34 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/primitives";
 import { readDevice } from "@/lib/device";
 import { isStandalone } from "@/lib/env";
+import { deferScroll, rememberScroll, savedScroll, scrollToNow } from "@/lib/scroll";
 import Landing from "@/pages/Landing";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
-const NewInterview = lazy(() => import("@/pages/NewInterview"));
-const InterviewRoom = lazy(() => import("@/pages/InterviewRoom"));
-const Report = lazy(() => import("@/pages/Report"));
-const History = lazy(() => import("@/pages/History"));
-const PracticeLab = lazy(() => import("@/pages/PracticeLab"));
-const Settings = lazy(() => import("@/pages/Settings"));
+const appPages = {
+  dashboard: () => import("@/pages/Dashboard"),
+  newInterview: () => import("@/pages/NewInterview"),
+  interviewRoom: () => import("@/pages/InterviewRoom"),
+  report: () => import("@/pages/Report"),
+  history: () => import("@/pages/History"),
+  practiceLab: () => import("@/pages/PracticeLab"),
+  settings: () => import("@/pages/Settings"),
+};
+const Dashboard = lazy(appPages.dashboard);
+const NewInterview = lazy(appPages.newInterview);
+const InterviewRoom = lazy(appPages.interviewRoom);
+const Report = lazy(appPages.report);
+const History = lazy(appPages.history);
+const PracticeLab = lazy(appPages.practiceLab);
+const Settings = lazy(appPages.settings);
 const NotFound = lazy(() => import("@/pages/NotFound"));
+
+/** Fetches every app page in the background, so moving between them never waits. */
+function preloadAppPages() {
+  const load = () => Object.values(appPages).forEach((page) => void page().catch(() => undefined));
+  if ("requestIdleCallback" in window) window.requestIdleCallback(load);
+  else setTimeout(load, 1500);
+}
 
 function FullPageSpinner() {
   return (
@@ -51,6 +69,10 @@ function RequireSession({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!loading && !ready) ensureSession();
   }, [loading, ready, ensureSession]);
+
+  useEffect(() => {
+    if (ready) preloadAppPages();
+  }, [ready]);
 
   if (ready) return <>{children}</>;
   if (error) {
@@ -81,18 +103,50 @@ function useIsPhone() {
   return phone;
 }
 
+/** Pages inside the app shell, which animates between them. */
+const inAppShell = (pathname: string) => pathname.startsWith("/app") && !pathname.startsWith("/app/interview/");
+
+/**
+ * New pages start at the top; Back and Forward return to the saved position.
+ * Between two app-shell pages the scroll waits for the outgoing page to fade
+ * out (the shell applies it), so the old page never jumps.
+ */
+function ScrollManager() {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const previous = useRef(location);
+
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+  }, []);
+
+  useLayoutEffect(() => {
+    const from = previous.current;
+    previous.current = location;
+    if (from.key === location.key) return;
+    rememberScroll(from.key);
+    // Same page with a different query or hash (e.g. filters): stay put.
+    if (from.pathname === location.pathname) return;
+    const top = navigationType === "POP" ? savedScroll(location.key) : 0;
+    if (inAppShell(from.pathname) && inAppShell(location.pathname)) deferScroll(top);
+    else scrollToNow(top);
+  }, [location, navigationType]);
+
+  return null;
+}
+
 function Root() {
   const phone = useIsPhone();
   return (
     <AuthProvider>
-      <ScrollRestoration />
+      <ScrollManager />
       <Suspense fallback={<FullPageSpinner />}>
         <Outlet />
       </Suspense>
-      {/* On phones, toasts sit at the top so they never cover the tab bar or bottom buttons. */}
+      {/* On phones, toasts sit just below the header, clear of its buttons, the tab bar and bottom actions. */}
       <Toaster
         position={phone ? "top-center" : "bottom-center"}
-        mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+        mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 76px)" }}
         toastOptions={{ className: "!rounded-2xl !font-sans" }}
       />
     </AuthProvider>

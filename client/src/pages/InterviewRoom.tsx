@@ -416,8 +416,7 @@ function QuestionStage({
         skipped,
       });
       writeDraft(key, "");
-      const next = updated.questions[updated.currentIndex];
-      if (next?.kind === "follow-up") toast("Poise has a follow-up question.", { duration: 2500 });
+      // A follow-up announces itself in the room (label, badge and voice), so no toast is needed.
       onSession(updated);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "We couldn't save your answer. Please try again.");

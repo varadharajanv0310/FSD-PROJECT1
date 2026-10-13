@@ -54,12 +54,26 @@ function readStored(): State | null {
 
 let state: State = readStored() ?? emptyState();
 
+export type ExternalChange = "profile" | "data";
+const externalListeners = new Set<(change: ExternalChange) => void>();
+
 // Another tab of the app saved: adopt its copy, so this tab never writes stale
-// data over it (or starts a second profile next to the first).
+// data over it (or starts a second profile next to the first), and let the UI
+// know whether the profile itself changed or just its data.
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
-    if (event.key === KEY || event.key === null) state = readStored() ?? emptyState();
+    if (event.key !== KEY && event.key !== null) return;
+    const before = state.currentUserId;
+    state = readStored() ?? emptyState();
+    const change: ExternalChange = state.currentUserId === before ? "data" : "profile";
+    externalListeners.forEach((listener) => listener(change));
   });
+}
+
+/** Subscribes to changes made by other tabs. */
+export function onExternalChange(listener: (change: ExternalChange) => void): () => void {
+  externalListeners.add(listener);
+  return () => externalListeners.delete(listener);
 }
 
 export const store = {

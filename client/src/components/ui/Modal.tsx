@@ -22,23 +22,31 @@ export function Modal({
   tone?: "light" | "dark";
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Callers usually pass an inline onClose. Reading it through a ref keeps the
+  // effect below from re-running (and moving focus) on every parent render.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button, input, textarea")?.focus());
+    // Focus the first field if there is one, otherwise the first button (Close).
+    requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      (panel?.querySelector<HTMLElement>("input, textarea") ?? panel?.querySelector<HTMLElement>("button"))?.focus();
+    });
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = overflow;
       previous?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return createPortal(
     <AnimatePresence>

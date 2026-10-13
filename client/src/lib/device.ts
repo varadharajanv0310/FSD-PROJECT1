@@ -19,6 +19,15 @@ export function readDevice(): DeviceCredentials | undefined {
   }
 }
 
+/** Calls back when another tab changes this browser's profile (e.g. erases it). */
+export function onDeviceChanged(listener: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === KEY || event.key === null) listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
 export function writeDevice(device: DeviceCredentials | null): void {
   try {
     if (device) localStorage.setItem(KEY, JSON.stringify(device));

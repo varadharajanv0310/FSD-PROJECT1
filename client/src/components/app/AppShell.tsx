@@ -1,12 +1,14 @@
 import { ChevronDown, Cpu, History, LayoutGrid, Plus, Settings, Sparkles, UserRound, WifiOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useOutlet } from "react-router";
 import { PageGlow } from "@/components/brand/Glow";
 import { Logo } from "@/components/brand/Logo";
 import { ButtonLink } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/primitives";
 import { cn } from "@/lib/cn";
 import { isStandalone } from "@/lib/env";
+import { applyDeferredScroll } from "@/lib/scroll";
 import { useEngine } from "@/lib/queries";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -125,6 +127,12 @@ function FrozenOutlet() {
   return frozen;
 }
 
+/** Applies the navigation's scroll once the incoming page is in the document. */
+function ScrollOnMount() {
+  useLayoutEffect(applyDeferredScroll, []);
+  return null;
+}
+
 export function AppShell() {
   const location = useLocation();
 
@@ -163,8 +171,7 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* Each page starts at the top once the previous one has faded out. */}
-      <AnimatePresence mode="wait" onExitComplete={() => window.scrollTo({ top: 0, behavior: "instant" })}>
+      <AnimatePresence mode="wait">
         <motion.main
           key={location.pathname}
           initial={{ opacity: 0, y: 10 }}
@@ -173,7 +180,17 @@ export function AppShell() {
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto max-w-[1200px] px-5 py-8 sm:px-8 sm:py-10"
         >
-          <FrozenOutlet />
+          {/* Pages load on first visit; waiting here keeps the header and tab bar on screen. */}
+          <Suspense
+            fallback={
+              <div className="flex min-h-[50vh] items-center justify-center">
+                <Spinner className="size-6" />
+              </div>
+            }
+          >
+            <FrozenOutlet />
+          </Suspense>
+          <ScrollOnMount />
         </motion.main>
       </AnimatePresence>
 
